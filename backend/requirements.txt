@@ -1,0 +1,12 @@
+psycopg2-binary>=2.9
+openai>=1.0
+pgvector>=0.2
+python-dotenv>=1.0
+requests>=2.31
+requests-oauthlib>=1.3
+pytest>=7.0
+fastapi>=0.110
+uvicorn>=0.29
+sqlalchemy>=2.0
+httpx>=0.27
+slack-sdk>=3.27

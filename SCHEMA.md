@@ -113,4 +113,4 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- UUID generation
 
 | File | Description | Date |
 |------|-------------|------|
-| (none yet) | Schema not yet created | — |
+| 001_initial_schema.sql | Created posts, project_updates, ingestion_checkpoints, query_history tables + all indexes + tsvector trigger | 2026-03-20 |
