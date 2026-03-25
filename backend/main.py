@@ -29,8 +29,8 @@ EMBEDDING_MODEL = 'text-embedding-3-small'
 app = FastAPI(title='Marketing Command Center', version='1.0.0')
 app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
 
 
 def get_conn():
@@ -38,6 +38,8 @@ def get_conn():
 
 
 def embed(text: str) -> list:
+    if not openai_client:
+        raise HTTPException(status_code=503, detail='OpenAI client not configured')
     response = openai_client.embeddings.create(model=EMBEDDING_MODEL, input=[text])
     return response.data[0].embedding
 
@@ -247,6 +249,8 @@ def compare_query(req: CompareQueryRequest):
     snippets = '\n'.join([f"- {r['author']}: {r['content'][:200]}" for r in combined])
     summary = ''
     try:
+        if not anthropic_client:
+            raise ValueError('Anthropic client not configured')
         msg = anthropic_client.messages.create(
             model='claude-sonnet-4-5',
             max_tokens=512,
@@ -391,4 +395,5 @@ def project_history(name: str, limit: int = Query(20)):
 
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    port = int(os.getenv('PORT', 8000))
+    uvicorn.run(app, host='0.0.0.0', port=port)
