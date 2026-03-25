@@ -43,3 +43,50 @@ Marketing Command Center | OpenClaw (Bullseye)
 **backend/requirements.txt created**
 
 **Status:** Complete ✅
+
+---
+
+## Task Group 5: Frontend — Next.js Dashboard
+
+### 2026-03-24
+
+**Next.js 16.2.1 app scaffolded** in `/frontend`
+- TypeScript + Tailwind CSS (v4) + App Router
+- shadcn/ui initialized (Tailwind v4 compatible)
+- shadcn components added: button, badge, card, tabs, separator, skeleton, input, label, textarea, select
+
+**Design system:**
+- Dark theme throughout (no light mode — this is a command center, not a SaaS landing page)
+- Color palette: `#0a0a0f` background, `#111118` cards, `#2563ff` electric blue accent
+- Fonts: Geist Sans (UI chrome) + Geist Mono (data/content)
+- Staggered card reveal animation (50ms delay per card, max 500ms)
+
+**Pages built:**
+
+1. **Query page** (`/`) — main intelligence query interface
+   - Text input with Enter-to-run, Shift+Enter for newline
+   - 3 modes: Keyword / Semantic / Side-by-Side (toggle pill selector)
+   - Results as cards: author + content + source link + timestamp + engagement
+   - Side-by-Side: two columns + Claude summary at top
+   - Loading skeletons, error state, empty state
+
+2. **Query History page** (`/history`) — paginated query log
+   - Paginated table (20/page) with engine badge, query text, result count, latency, relative timestamp
+   - Click to expand: loads full result snapshot + AI summary
+   - Export to markdown button (triggers download of .md file from backend)
+   - Loading skeletons throughout
+
+**Shared components:**
+- `NavBar` — sticky top bar with logo + page nav
+- `StatsBar` — live stats strip: total posts, X count, Slack count, last ingest time
+- `ResultCard` — post card with platform badge, engagement metrics, source link
+
+**API client** (`lib/api.ts`):
+- Typed wrappers for all MCC endpoints: keyword/semantic/compare queries, stats, history, export
+- `NEXT_PUBLIC_API_URL` env var (default: `http://localhost:8000`)
+- `.env.local` created
+
+**Build:** ✅ `npm run build` passes clean — 0 errors, 0 warnings
+- Routes compiled: `/` (static), `/history` (static)
+
+**Status:** Complete ✅
