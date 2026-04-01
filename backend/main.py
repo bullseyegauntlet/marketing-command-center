@@ -145,11 +145,23 @@ def stats():
         project_count = cur.fetchone()['total']
         cur.execute("SELECT COUNT(*) as total FROM query_history")
         query_count = cur.fetchone()['total']
+        # Also pull ingestion checkpoint data for last_ingestion field
+        cur.execute("SELECT source, status, last_run_at FROM ingestion_checkpoints")
+        last_ingestion = [
+            {
+                'source': r['source'],
+                'status': r['status'],
+                'last_run_at': r['last_run_at'].isoformat() if r['last_run_at'] else None,
+            }
+            for r in cur.fetchall()
+        ]
         return {
             'total_posts': total,
-            'by_platform': by_platform,
+            'by_platform': by_platform,          # legacy key
+            'posts_by_platform': by_platform,    # frontend expected key
             'project_updates': project_count,
             'queries_run': query_count,
+            'last_ingestion': last_ingestion,
         }
     finally:
         cur.close()
@@ -205,7 +217,7 @@ def keyword_query(req: KeywordQueryRequest):
               'keyword', json.dumps(results[:5]), len(results), latency_ms))
         conn.commit()
 
-        return {'results': results, 'count': len(results), 'latency_ms': latency_ms}
+        return {'results': results, 'posts': results, 'count': len(results), 'latency_ms': latency_ms}
     finally:
         cur.close()
         conn.close()
@@ -260,7 +272,7 @@ def semantic_query(req: SemanticQueryRequest):
               'semantic', json.dumps(results[:5]), len(results), latency_ms))
         conn.commit()
 
-        return {'results': results, 'count': len(results), 'latency_ms': latency_ms}
+        return {'results': results, 'posts': results, 'count': len(results), 'latency_ms': latency_ms}
     finally:
         cur.close()
         conn.close()
