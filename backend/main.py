@@ -7,6 +7,7 @@ import json
 import os
 import time
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 import psycopg2
@@ -20,6 +21,14 @@ from openai import OpenAI, RateLimitError as OpenAIRateLimitError
 from pydantic import BaseModel
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
+
+def safe_json(obj):
+    """JSON encoder that handles Decimal and other non-serializable types."""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 DB_URL = os.getenv('DATABASE_URL')
 # Support OpenRouter (preferred) or OpenAI directly
@@ -237,8 +246,8 @@ def keyword_query(req: KeywordQueryRequest):
             INSERT INTO query_history (user_id, query_text, filters, engine, results_snapshot, result_count, latency_ms)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, ('system', req.query,
-              json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}),
-              'keyword', json.dumps(results[:5]), len(results), latency_ms))
+              json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}, default=safe_json),
+              'keyword', json.dumps(results[:5], default=safe_json), len(results), latency_ms))
         conn.commit()
 
         return {'results': results, 'posts': results, 'count': len(results), 'latency_ms': latency_ms}
@@ -292,8 +301,8 @@ def semantic_query(req: SemanticQueryRequest):
             INSERT INTO query_history (user_id, query_text, filters, engine, results_snapshot, result_count, latency_ms)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, ('system', req.query,
-              json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}),
-              'semantic', json.dumps(results[:5]), len(results), latency_ms))
+              json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}, default=safe_json),
+              'semantic', json.dumps(results[:5], default=safe_json), len(results), latency_ms))
         conn.commit()
 
         return {'results': results, 'posts': results, 'count': len(results), 'latency_ms': latency_ms}
@@ -345,9 +354,9 @@ def compare_query(req: CompareQueryRequest):
             INSERT INTO query_history (user_id, query_text, filters, engine, summary, results_snapshot, result_count, latency_ms)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, ('system', req.query,
-              json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}),
+              json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}, default=safe_json),
               'side_by_side', summary,
-              json.dumps({'keyword': kw_results['results'][:3], 'semantic': sem_results['results'][:3]}),
+              json.dumps({'keyword': kw_results['results'][:3], 'semantic': sem_results['results'][:3]}, default=safe_json),
               kw_results['count'] + sem_results['count'], latency_ms))
         conn.commit()
     finally:
