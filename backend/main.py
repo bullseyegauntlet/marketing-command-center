@@ -181,7 +181,7 @@ def keyword_query(req: KeywordQueryRequest):
         sql = """
             SELECT id, platform, author, content, source_url, published_at,
                    likes, retweets, replies, channel,
-                   ts_rank(content_tsv, plainto_tsquery('english', %s)) as rank
+                   ts_rank(content_tsv, plainto_tsquery('english', %s))::float as rank
             FROM posts
             WHERE content_tsv @@ plainto_tsquery('english', %s)
         """
