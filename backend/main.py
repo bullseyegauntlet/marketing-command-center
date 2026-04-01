@@ -238,6 +238,10 @@ def keyword_query(req: KeywordQueryRequest):
         for r in results:
             if r.get('published_at'):
                 r['published_at'] = r['published_at'].isoformat()
+            # Ensure all numeric fields are native Python types
+            for k, v in r.items():
+                if isinstance(v, Decimal):
+                    r[k] = float(v)
 
         latency_ms = int((time.time() - start) * 1000)
 
@@ -292,8 +296,9 @@ def semantic_query(req: SemanticQueryRequest):
         for r in results:
             if r.get('published_at'):
                 r['published_at'] = r['published_at'].isoformat()
-            if r.get('similarity'):
-                r['similarity'] = float(r['similarity'])
+            for k, v in r.items():
+                if isinstance(v, Decimal):
+                    r[k] = float(v)
 
         latency_ms = int((time.time() - start) * 1000)
 
