@@ -341,21 +341,35 @@ def compare_query(req: CompareQueryRequest):
 # ─── Query History ─────────────────────────────────────────────────────────
 
 @app.get('/api/query/history')
-def query_history(limit: int = Query(20), offset: int = Query(0)):
+def query_history(
+    limit: int = Query(20),
+    offset: int = Query(0),
+    page: int = Query(1),
+    page_size: int = Query(20),
+):
+    # Support both limit/offset and page/page_size
+    effective_limit = limit if limit != 20 else page_size
+    effective_offset = offset if offset != 0 else (page - 1) * page_size
     conn = get_conn()
     cur = conn.cursor()
     try:
         cur.execute("""
             SELECT id, query_text, engine, result_count, latency_ms, created_at
             FROM query_history ORDER BY created_at DESC LIMIT %s OFFSET %s
-        """, (limit, offset))
+        """, (effective_limit, effective_offset))
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows:
             if r.get('created_at'):
                 r['created_at'] = r['created_at'].isoformat()
         cur.execute("SELECT COUNT(*) as total FROM query_history")
         total = cur.fetchone()['total']
-        return {'results': rows, 'total': total}
+        return {
+            'items': rows,       # frontend expected key
+            'results': rows,     # legacy key
+            'total': total,
+            'page': page,
+            'page_size': effective_limit,
+        }
     finally:
         cur.close()
         conn.close()
