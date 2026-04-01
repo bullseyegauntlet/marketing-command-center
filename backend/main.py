@@ -406,8 +406,9 @@ def keyword_query(req: KeywordQueryRequest):
                 results = [dict(r) for r in cur.fetchall()]
 
             # Last resort: if no meaningful words or ILIKE found nothing but we have a date range,
-            # return most-engaged posts from that period
-            if not results and (date_from or date_to):
+            # return most-engaged posts from that period — ONLY if no platform filter is active
+            # (if platform was specified and nothing found, return empty rather than wrong platform)
+            if not results and (date_from or date_to) and not effective_platform:
                 last_resort_sql = """
                     SELECT id, platform, author, content, source_url, published_at,
                            likes, retweets, replies, channel, 0.0 as rank
