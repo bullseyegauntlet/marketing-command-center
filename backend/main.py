@@ -332,7 +332,7 @@ def keyword_query(req: KeywordQueryRequest):
             words = [w.strip() for w in search_text.split()
                      if len(w.strip()) > 3 and w.strip().lower() not in STOPWORDS]
             if words:
-                like_conditions = ' OR '.join(['content ILIKE %s'] * len(words))
+                like_conditions = ' AND '.join(['content ILIKE %s'] * len(words))
                 fallback_sql = f"""
                     SELECT id, platform, author, content, source_url, published_at,
                            likes, retweets, replies, channel, 0.0 as rank
