@@ -38,6 +38,49 @@ MONTHS = {
     'sep':9,'sept':9,'oct':10,'nov':11,'dec':12,
 }
 
+def parse_platform(query: str) -> Tuple[str, Optional[str]]:
+    """
+    Detect platform filters from query text.
+    Returns: (cleaned_query, platform) where platform is 'x', 'slack', or None.
+    Matches: 'on slack', 'from slack', 'in slack', 'on x', 'on twitter',
+             'slack posts', 'x posts', 'twitter posts', etc.
+    """
+    q = query
+    platform = None
+
+    patterns_slack = [
+        r'\b(?:on|from|in|about)\s+slack\b',
+        r'\bslack\s+(?:posts?|messages?|content|discussions?|conversations?)\b',
+        r'\bslack\s+only\b',
+        r'\bfrom\s+the\s+slack\b',
+        r'\bslack\s+channel\b',
+    ]
+    patterns_x = [
+        r'\b(?:on|from|in)\s+(?:x|twitter)\b',
+        r'\b(?:x|twitter)\s+(?:posts?|tweets?|content|opinions?|discussions?|thoughts?)\b',
+        r'\b(?:x|twitter)\s+only\b',
+        r'\bfrom\s+(?:x|twitter)\b',
+        r'\btwitter\b',   # bare "twitter" always means X platform
+    ]
+
+    for pat in patterns_slack:
+        if re.search(pat, q, re.IGNORECASE):
+            platform = 'slack'
+            q = re.sub(pat, '', q, flags=re.IGNORECASE).strip()
+            break
+
+    if not platform:
+        for pat in patterns_x:
+            if re.search(pat, q, re.IGNORECASE):
+                platform = 'x'
+                q = re.sub(pat, '', q, flags=re.IGNORECASE).strip()
+                break
+
+    # Clean up extra whitespace/punctuation left after extraction
+    q = re.sub(r'\s{2,}', ' ', q).strip().strip(',').strip()
+    return q, platform
+
+
 def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Extract temporal expressions from a query string.
@@ -273,9 +316,11 @@ def keyword_query(req: KeywordQueryRequest):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        # Parse temporal expressions from query text
-        clean_query, date_from, date_to = parse_temporal(req.query)
-        search_text = clean_query if clean_query else req.query
+        # Parse platform filter from query text, then temporal expressions
+        query_after_platform, detected_platform = parse_platform(req.query)
+        effective_platform = detected_platform or req.platform
+        clean_query, date_from, date_to = parse_temporal(query_after_platform)
+        search_text = clean_query if clean_query else query_after_platform
 
         params = [search_text]
         sql = """
@@ -296,9 +341,9 @@ def keyword_query(req: KeywordQueryRequest):
         if date_to:
             sql += " AND published_at <= %s"
             params.append(date_to)
-        if req.platform:
+        if effective_platform:
             sql += " AND platform = %s"
-            params.append(req.platform)
+            params.append(effective_platform)
         if req.channel:
             sql += " AND channel = %s"
             params.append(req.channel)
@@ -349,9 +394,9 @@ def keyword_query(req: KeywordQueryRequest):
                 if date_to:
                     fallback_sql += " AND published_at <= %s"
                     fallback_params.append(date_to)
-                if req.platform:
+                if effective_platform:
                     fallback_sql += " AND platform = %s"
-                    fallback_params.append(req.platform)
+                    fallback_params.append(effective_platform)
                 if req.days and not date_from:
                     fallback_sql += " AND published_at >= NOW() - INTERVAL '%s days'"
                     fallback_params.append(req.days)
@@ -413,8 +458,10 @@ def keyword_query(req: KeywordQueryRequest):
 def semantic_query(req: SemanticQueryRequest):
     start = time.time()
     # Parse temporal expressions before embedding (embed the clean query)
-    clean_query, date_from, date_to = parse_temporal(req.query)
-    search_text = clean_query if clean_query else req.query
+    query_after_platform, detected_platform = parse_platform(req.query)
+    effective_platform = detected_platform or req.platform
+    clean_query, date_from, date_to = parse_temporal(query_after_platform)
+    search_text = clean_query if clean_query else query_after_platform
     embedding = embed(search_text)
     conn = get_conn()
     cur = conn.cursor()
@@ -437,9 +484,9 @@ def semantic_query(req: SemanticQueryRequest):
         if date_to:
             sql += " AND published_at <= %s"
             params.append(date_to)
-        if req.platform:
+        if effective_platform:
             sql += " AND platform = %s"
-            params.append(req.platform)
+            params.append(effective_platform)
         if req.channel:
             sql += " AND channel = %s"
             params.append(req.channel)
