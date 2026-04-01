@@ -94,7 +94,9 @@ def log_dead_letter(tweet: dict, error: str):
 
 
 def fetch_list_tweets(since_id: Optional[str] = None) -> tuple[list, dict]:
-    """Fetch tweets from X list. Returns (tweets, author_map)."""
+    """Fetch tweets from X list since since_id. Returns (tweets, author_map).
+    The /lists/:id/tweets endpoint doesn't support since_id — we paginate
+    and stop when we see a tweet ID <= since_id."""
     base_url = f'https://api.twitter.com/2/lists/{X_LIST_ID}/tweets'
     params = {
         'max_results': 100,
@@ -102,24 +104,39 @@ def fetch_list_tweets(since_id: Optional[str] = None) -> tuple[list, dict]:
         'expansions': 'author_id',
         'user.fields': 'username',
     }
-    if since_id:
-        params['since_id'] = since_id
 
     all_tweets = []
     author_map = {}
+    since_int = int(since_id) if since_id else 0
+    max_pages = 50  # safety cap (~5000 tweets max per run)
 
-    while True:
+    for page in range(max_pages):
         data = x_get(base_url, params)
         if 'error' in data or 'errors' in data:
             log.error(f'X API error: {data}')
             break
 
         tweets = data.get('data', [])
-        all_tweets.extend(tweets)
+        if not tweets:
+            break
+
+        # Stop paginating once we see tweets we already have
+        new_tweets = []
+        done = False
+        for t in tweets:
+            if int(t['id']) <= since_int:
+                done = True
+                break
+            new_tweets.append(t)
+
+        all_tweets.extend(new_tweets)
 
         # Build author map from includes
         for user in data.get('includes', {}).get('users', []):
             author_map[user['id']] = user['username']
+
+        if done:
+            break
 
         meta = data.get('meta', {})
         next_token = meta.get('next_token')
