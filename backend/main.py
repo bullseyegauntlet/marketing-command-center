@@ -322,9 +322,15 @@ def keyword_query(req: KeywordQueryRequest):
         cur.execute(sql, params)
         results = [dict(r) for r in cur.fetchall()]
 
-        # Fallback: if full-text returns nothing, try ILIKE on individual words
+        # Fallback: if full-text returns nothing, try ILIKE on meaningful words only
+        # Skip common English stopwords that match everything
+        STOPWORDS = {'what','are','the','most','mentioned','about','with','this','that',
+                     'from','have','been','will','were','they','them','their','there',
+                     'when','where','which','who','how','why','all','any','some','more',
+                     'very','just','also','into','over','than','then','these','those'}
         if not results:
-            words = [w.strip() for w in search_text.split() if len(w.strip()) > 2]
+            words = [w.strip() for w in search_text.split()
+                     if len(w.strip()) > 3 and w.strip().lower() not in STOPWORDS]
             if words:
                 like_conditions = ' OR '.join(['content ILIKE %s'] * len(words))
                 fallback_sql = f"""
@@ -352,6 +358,28 @@ def keyword_query(req: KeywordQueryRequest):
                 fallback_sql += " ORDER BY published_at DESC LIMIT %s"
                 fallback_params.append(req.limit)
                 cur.execute(fallback_sql, fallback_params)
+                results = [dict(r) for r in cur.fetchall()]
+
+            # Last resort: if no meaningful words or ILIKE found nothing but we have a date range,
+            # return most-engaged posts from that period
+            if not results and (date_from or date_to):
+                last_resort_sql = """
+                    SELECT id, platform, author, content, source_url, published_at,
+                           likes, retweets, replies, channel, 0.0 as rank
+                    FROM posts WHERE 1=1
+                """
+                last_resort_params = []
+                if date_from and not date_from.startswith('NOW'):
+                    last_resort_sql += " AND published_at >= %s"
+                    last_resort_params.append(date_from)
+                elif date_from:
+                    last_resort_sql += f" AND published_at >= {date_from}"
+                if date_to:
+                    last_resort_sql += " AND published_at <= %s"
+                    last_resort_params.append(date_to)
+                last_resort_sql += " ORDER BY (likes + retweets * 2) DESC, published_at DESC LIMIT %s"
+                last_resort_params.append(req.limit)
+                cur.execute(last_resort_sql, last_resort_params)
                 results = [dict(r) for r in cur.fetchall()]
 
         for r in results:
