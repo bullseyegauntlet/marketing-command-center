@@ -27,7 +27,17 @@ ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 EMBEDDING_MODEL = 'text-embedding-3-small'
 
 app = FastAPI(title='Marketing Command Center', version='1.0.0')
-app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        'https://marketing-command-center-55ff2635.netlify.app',
+        'http://localhost:3000',
+        'http://localhost:3001',
+    ],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
