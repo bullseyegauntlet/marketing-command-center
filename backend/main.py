@@ -294,7 +294,11 @@ def semantic_query(req: SemanticQueryRequest):
             sql += " AND published_at >= NOW() - INTERVAL '%s days'"
             params.append(req.days)
 
-        sql += " ORDER BY embedding <=> %s::vector LIMIT %s"
+        # Blend similarity with recency (70/30), same as keyword search
+        sql += """ ORDER BY (
+            (1 - (embedding <=> %s::vector)) * 0.7
+            + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - published_at)) / 7776000.0) * 0.3
+        ) DESC LIMIT %s"""
         params.extend([embedding, req.limit])
 
         cur.execute(sql, params)
