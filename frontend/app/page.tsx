@@ -5,57 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResultCard } from "@/components/result-card";
 import {
-  querySemantic,
   querySemanticWithSummary,
   type QueryResult,
   type Post,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
-
-type Mode = "semantic" | "with-summary";
-
-const modes: { id: Mode; label: string; desc: string }[] = [
-  { id: "semantic", label: "Semantic", desc: "pgvector similarity search" },
-  { id: "with-summary", label: "With Summary", desc: "Semantic search + Claude AI summary" },
-];
-
-function ResultsColumn({
-  result,
-  loading,
-}: {
-  result: QueryResult | null;
-  loading: boolean;
-}) {
-  return (
-    <div className="flex-1 min-w-0">
-      {loading ? (
-        <div className="space-y-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="border border-border rounded-lg p-4 bg-card space-y-2">
-              <div className="flex gap-2">
-                <Skeleton className="h-4 w-12" />
-                <Skeleton className="h-4 w-24" />
-              </div>
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-4/5" />
-              <Skeleton className="h-3 w-3/5" />
-            </div>
-          ))}
-        </div>
-      ) : result === null ? null : result.posts.length === 0 ? (
-        <div className="border border-border rounded-lg p-8 text-center text-muted-foreground text-sm font-mono">
-          No results found.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {result.posts.map((post: Post, i: number) => (
-            <ResultCard key={post.id} post={post} index={i} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function SummaryBox({ summary }: { summary: string }) {
   return (
@@ -71,12 +24,9 @@ function SummaryBox({ summary }: { summary: string }) {
 
 export default function QueryPage() {
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<Mode>("semantic");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<QueryResult | null>(null);
-
-  const hasResults = result !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,13 +37,8 @@ export default function QueryPage() {
     setResult(null);
 
     try {
-      if (mode === "semantic") {
-        const res = await querySemantic(query.trim());
-        setResult(res);
-      } else {
-        const res = await querySemanticWithSummary(query.trim());
-        setResult(res);
-      }
+      const res = await querySemanticWithSummary(query.trim());
+      setResult(res);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Query failed");
     } finally {
@@ -110,7 +55,6 @@ export default function QueryPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-foreground">Intelligence Query</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -118,33 +62,7 @@ export default function QueryPage() {
         </p>
       </div>
 
-      {/* Query Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Mode Selector */}
-        <div className="flex gap-1 p-1 bg-secondary rounded-lg w-fit">
-          {modes.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMode(m.id)}
-              className={cn(
-                "px-4 py-1.5 rounded text-xs font-mono font-medium transition-all duration-150",
-                mode === m.id
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Active mode description */}
-        <p className="text-xs text-muted-foreground font-mono -mt-2">
-          {modes.find((m) => m.id === mode)?.desc}
-        </p>
-
-        {/* Input area */}
         <div className="flex gap-3">
           <div className="flex-1 relative">
             <textarea
@@ -177,53 +95,69 @@ export default function QueryPage() {
         </div>
       </form>
 
-      {/* Error */}
       {error && (
         <div className="border border-destructive/30 bg-destructive/10 rounded-lg px-4 py-3 text-sm text-destructive font-mono">
           ✕ {error}
         </div>
       )}
 
-      {/* Results */}
-      {(loading || hasResults) && (
+      {(loading || result !== null) && (
         <div>
-          {/* Meta row */}
-          {!loading && result && (
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                Semantic results
-              </span>
-              <span className="text-xs font-mono text-primary/70">
-                {result.count ?? 0} posts
-              </span>
-              {result.latency_ms && (
-                <span className="text-xs font-mono text-muted-foreground ml-auto">
-                  {result.latency_ms}ms
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Summary loading skeleton */}
-          {loading && mode === "with-summary" && (
-            <div className="border border-primary/20 rounded-lg p-4 bg-primary/5 mb-4 space-y-2">
+          {/* Summary skeleton while loading */}
+          {loading && (
+            <div className="border border-primary/20 rounded-lg p-4 bg-primary/5 mb-6 space-y-2">
               <Skeleton className="h-3 w-32" />
               <Skeleton className="h-3 w-full" />
               <Skeleton className="h-3 w-5/6" />
             </div>
           )}
 
-          {/* Claude summary (with-summary mode) */}
+          {/* Claude summary */}
           {!loading && result?.summary && (
             <SummaryBox summary={result.summary} />
           )}
 
-          <ResultsColumn result={result} loading={loading} />
+          {/* Meta row */}
+          {!loading && result && (
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Results</span>
+              <span className="text-xs font-mono text-primary/70">{result.count ?? 0} posts</span>
+              {result.latency_ms && (
+                <span className="text-xs font-mono text-muted-foreground ml-auto">{result.latency_ms}ms</span>
+              )}
+            </div>
+          )}
+
+          {/* Results */}
+          {loading ? (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="border border-border rounded-lg p-4 bg-card space-y-2">
+                  <div className="flex gap-2">
+                    <Skeleton className="h-4 w-12" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-3/5" />
+                </div>
+              ))}
+            </div>
+          ) : result?.posts.length === 0 ? (
+            <div className="border border-border rounded-lg p-8 text-center text-muted-foreground text-sm font-mono">
+              No results found.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {result?.posts.map((post: Post, i: number) => (
+                <ResultCard key={post.id} post={post} index={i} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && !hasResults && !error && (
+      {!loading && result === null && !error && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="text-4xl mb-4 opacity-20">◎</div>
           <p className="text-muted-foreground text-sm font-mono">
