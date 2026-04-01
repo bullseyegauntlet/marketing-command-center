@@ -14,9 +14,10 @@ import psycopg2
 import psycopg2.extras
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI
+from fastapi.responses import JSONResponse
+from openai import OpenAI, RateLimitError as OpenAIRateLimitError
 from pydantic import BaseModel
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
@@ -26,18 +27,36 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 EMBEDDING_MODEL = 'text-embedding-3-small'
 
+ALLOWED_ORIGINS = [
+    'https://marketing-command-center-55ff2635.netlify.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+]
+
 app = FastAPI(title='Marketing Command Center', version='1.0.0')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        'https://marketing-command-center-55ff2635.netlify.app',
-        'http://localhost:3000',
-        'http://localhost:3001',
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Ensure CORS headers are present even on unhandled 500 errors."""
+    origin = request.headers.get('origin', '')
+    headers = {}
+    if origin in ALLOWED_ORIGINS:
+        headers['Access-Control-Allow-Origin'] = origin
+        headers['Access-Control-Allow-Credentials'] = 'true'
+    return JSONResponse(
+        status_code=500,
+        content={'detail': str(exc)},
+        headers=headers,
+    )
+
 
 openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
@@ -50,8 +69,11 @@ def get_conn():
 def embed(text: str) -> list:
     if not openai_client:
         raise HTTPException(status_code=503, detail='OpenAI client not configured')
-    response = openai_client.embeddings.create(model=EMBEDDING_MODEL, input=[text])
-    return response.data[0].embedding
+    try:
+        response = openai_client.embeddings.create(model=EMBEDDING_MODEL, input=[text])
+        return response.data[0].embedding
+    except OpenAIRateLimitError as e:
+        raise HTTPException(status_code=503, detail=f'OpenAI quota exceeded — semantic search unavailable: {e}')
 
 
 # ─── Request/Response Models ───────────────────────────────────────────────
