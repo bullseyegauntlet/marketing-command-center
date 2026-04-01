@@ -324,7 +324,7 @@ def keyword_query(req: KeywordQueryRequest):
 
         # Fallback: if full-text returns nothing, try ILIKE on individual words
         if not results:
-            words = [w.strip() for w in req.query.split() if len(w.strip()) > 2]
+            words = [w.strip() for w in search_text.split() if len(w.strip()) > 2]
             if words:
                 like_conditions = ' OR '.join(['content ILIKE %s'] * len(words))
                 fallback_sql = f"""
@@ -334,10 +334,19 @@ def keyword_query(req: KeywordQueryRequest):
                     WHERE {like_conditions}
                 """
                 fallback_params = [f'%{w}%' for w in words]
+                # Apply same temporal filters as main query
+                if date_from and not date_from.startswith('NOW'):
+                    fallback_sql += " AND published_at >= %s"
+                    fallback_params.append(date_from)
+                elif date_from:
+                    fallback_sql += f" AND published_at >= {date_from}"
+                if date_to:
+                    fallback_sql += " AND published_at <= %s"
+                    fallback_params.append(date_to)
                 if req.platform:
                     fallback_sql += " AND platform = %s"
                     fallback_params.append(req.platform)
-                if req.days:
+                if req.days and not date_from:
                     fallback_sql += " AND published_at >= NOW() - INTERVAL '%s days'"
                     fallback_params.append(req.days)
                 fallback_sql += " ORDER BY published_at DESC LIMIT %s"
