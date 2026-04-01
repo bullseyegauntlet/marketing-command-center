@@ -5,10 +5,11 @@ Marketing Command Center — FastAPI Backend
 import asyncio
 import json
 import os
+import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Tuple
 
 import psycopg2
 import psycopg2.extras
@@ -29,6 +30,93 @@ def safe_json(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+MONTHS = {
+    'january':1,'february':2,'march':3,'april':4,'may':5,'june':6,
+    'july':7,'august':8,'september':9,'october':10,'november':11,'december':12,
+    'jan':1,'feb':2,'mar':3,'apr':4,'jun':6,'jul':7,'aug':8,
+    'sep':9,'sept':9,'oct':10,'nov':11,'dec':12,
+}
+
+def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
+    """
+    Extract temporal expressions from a query string.
+    Returns: (cleaned_query, date_from, date_to)
+    date_from/date_to are ISO date strings or None.
+    """
+    q = query.lower().strip()
+    date_from = None
+    date_to = None
+    original = query
+
+    # "in [month] [year]" or "in [month], [year]"
+    m = re.search(r'\bin\s+(' + '|'.join(MONTHS.keys()) + r')[,\s]+(\d{4})\b', q)
+    if m:
+        month = MONTHS[m.group(1)]
+        year = int(m.group(2))
+        import calendar
+        _, last_day = calendar.monthrange(year, month)
+        date_from = f"{year}-{month:02d}-01"
+        date_to = f"{year}-{month:02d}-{last_day:02d}"
+        query = re.sub(r'\bin\s+(' + '|'.join(MONTHS.keys()) + r')[,\s]+\d{4}\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, date_to
+
+    # "[month] [year]" anywhere
+    m = re.search(r'\b(' + '|'.join(MONTHS.keys()) + r')\s+(\d{4})\b', q)
+    if m:
+        month = MONTHS[m.group(1)]
+        year = int(m.group(2))
+        import calendar
+        _, last_day = calendar.monthrange(year, month)
+        date_from = f"{year}-{month:02d}-01"
+        date_to = f"{year}-{month:02d}-{last_day:02d}"
+        query = re.sub(r'\b(' + '|'.join(MONTHS.keys()) + r')\s+\d{4}\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, date_to
+
+    # "in [year]" e.g. "in 2025"
+    m = re.search(r'\bin\s+(20\d{2})\b', q)
+    if m:
+        year = int(m.group(1))
+        date_from = f"{year}-01-01"
+        date_to = f"{year}-12-31"
+        query = re.sub(r'\bin\s+20\d{2}\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, date_to
+
+    # "last week / last month / last N days"
+    m = re.search(r'\blast\s+(\d+)\s+days?\b', q)
+    if m:
+        days = int(m.group(1))
+        date_from = f"NOW() - INTERVAL '{days} days'"
+        query = re.sub(r'\blast\s+\d+\s+days?\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    m = re.search(r'\blast\s+week\b', q)
+    if m:
+        date_from = "NOW() - INTERVAL '7 days'"
+        query = re.sub(r'\blast\s+week\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    m = re.search(r'\blast\s+month\b', q)
+    if m:
+        date_from = "NOW() - INTERVAL '30 days'"
+        query = re.sub(r'\blast\s+month\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    # Q1/Q2/Q3/Q4 [year]
+    m = re.search(r'\bq([1-4])\s+(20\d{2})\b', q)
+    if m:
+        quarter = int(m.group(1))
+        year = int(m.group(2))
+        month_start = (quarter - 1) * 3 + 1
+        month_end = quarter * 3
+        import calendar
+        _, last_day = calendar.monthrange(year, month_end)
+        date_from = f"{year}-{month_start:02d}-01"
+        date_to = f"{year}-{month_end:02d}-{last_day:02d}"
+        query = re.sub(r'\bq[1-4]\s+20\d{2}\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, date_to
+
+    return query.strip(), None, None
 
 DB_URL = os.getenv('DATABASE_URL')
 # Support OpenRouter (preferred) or OpenAI directly
@@ -185,8 +273,11 @@ def keyword_query(req: KeywordQueryRequest):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        filters = []
-        params = [req.query]
+        # Parse temporal expressions from query text
+        clean_query, date_from, date_to = parse_temporal(req.query)
+        search_text = clean_query if clean_query else req.query
+
+        params = [search_text]
         sql = """
             SELECT id, platform, author, content, source_url, published_at,
                    likes, retweets, replies, channel,
@@ -194,25 +285,38 @@ def keyword_query(req: KeywordQueryRequest):
             FROM posts
             WHERE content_tsv @@ plainto_tsquery('english', %s)
         """
-        params.append(req.query)
+        params.append(search_text)
 
+        # Apply temporal filters (from query text or explicit request params)
+        if date_from and not date_from.startswith('NOW'):
+            sql += " AND published_at >= %s"
+            params.append(date_from)
+        elif date_from:
+            sql += f" AND published_at >= {date_from}"
+        if date_to:
+            sql += " AND published_at <= %s"
+            params.append(date_to)
         if req.platform:
             sql += " AND platform = %s"
             params.append(req.platform)
         if req.channel:
             sql += " AND channel = %s"
             params.append(req.channel)
-        if req.days:
+        if req.days and not date_from:
             sql += " AND published_at >= NOW() - INTERVAL '%s days'"
             params.append(req.days)
 
-        # Blend relevance rank with recency: rank * 0.7 + recency_score * 0.3
-        # recency_score decays over 90 days so recent posts rank higher when relevance is similar
-        sql += """ ORDER BY (
-            ts_rank(content_tsv, plainto_tsquery('english', %s))::float * 0.7
-            + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - published_at)) / 7776000.0) * 0.3
-        ) DESC LIMIT %s"""
-        params.append(req.query)  # second ts_rank ref in ORDER BY
+        # When time range is explicit: rank by relevance only
+        # When no time filter: blend relevance 70% + recency 30%
+        if date_from or date_to or req.days:
+            sql += """ ORDER BY ts_rank(content_tsv, plainto_tsquery('english', %s))::float DESC LIMIT %s"""
+            params.append(search_text)
+        else:
+            sql += """ ORDER BY (
+                ts_rank(content_tsv, plainto_tsquery('english', %s))::float * 0.7
+                + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - published_at)) / 7776000.0) * 0.3
+            ) DESC LIMIT %s"""
+            params.append(search_text)
         params.append(req.limit)
 
         cur.execute(sql, params)
@@ -271,7 +375,10 @@ def keyword_query(req: KeywordQueryRequest):
 @app.post('/api/query/semantic')
 def semantic_query(req: SemanticQueryRequest):
     start = time.time()
-    embedding = embed(req.query)
+    # Parse temporal expressions before embedding (embed the clean query)
+    clean_query, date_from, date_to = parse_temporal(req.query)
+    search_text = clean_query if clean_query else req.query
+    embedding = embed(search_text)
     conn = get_conn()
     cur = conn.cursor()
     try:
@@ -284,21 +391,33 @@ def semantic_query(req: SemanticQueryRequest):
         """
         params = [embedding]
 
+        # Apply temporal filters
+        if date_from and not date_from.startswith('NOW'):
+            sql += " AND published_at >= %s"
+            params.append(date_from)
+        elif date_from:
+            sql += f" AND published_at >= {date_from}"
+        if date_to:
+            sql += " AND published_at <= %s"
+            params.append(date_to)
         if req.platform:
             sql += " AND platform = %s"
             params.append(req.platform)
         if req.channel:
             sql += " AND channel = %s"
             params.append(req.channel)
-        if req.days:
+        if req.days and not date_from:
             sql += " AND published_at >= NOW() - INTERVAL '%s days'"
             params.append(req.days)
 
-        # Blend similarity with recency (70/30), same as keyword search
-        sql += """ ORDER BY (
-            (1 - (embedding <=> %s::vector)) * 0.7
-            + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - published_at)) / 7776000.0) * 0.3
-        ) DESC LIMIT %s"""
+        # When time range explicit: rank by similarity only; otherwise blend with recency
+        if date_from or date_to or req.days:
+            sql += " ORDER BY embedding <=> %s::vector LIMIT %s"
+        else:
+            sql += """ ORDER BY (
+                (1 - (embedding <=> %s::vector)) * 0.7
+                + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - published_at)) / 7776000.0) * 0.3
+            ) DESC LIMIT %s"""
         params.extend([embedding, req.limit])
 
         cur.execute(sql, params)
