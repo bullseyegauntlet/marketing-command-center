@@ -9,7 +9,6 @@ import time
 from datetime import datetime
 from typing import Optional
 
-import anthropic
 import psycopg2
 import psycopg2.extras
 import uvicorn
@@ -29,6 +28,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 EMBEDDING_API_KEY = OPENROUTER_API_KEY or OPENAI_API_KEY
 EMBEDDING_BASE_URL = 'https://openrouter.ai/api/v1' if OPENROUTER_API_KEY else None
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+SUMMARY_MODEL = 'anthropic/claude-sonnet-4-5'
 EMBEDDING_MODEL = 'text-embedding-3-small'
 
 ALLOWED_ORIGINS = [
@@ -63,7 +63,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 openai_client = OpenAI(api_key=EMBEDDING_API_KEY, base_url=EMBEDDING_BASE_URL) if EMBEDDING_API_KEY else None
-anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+# Summary client — uses OpenRouter (OpenAI-compatible) so no separate Anthropic SDK needed
+summary_client = OpenAI(api_key=EMBEDDING_API_KEY, base_url='https://openrouter.ai/api/v1') if EMBEDDING_API_KEY else None
 
 
 def get_conn():
@@ -285,17 +286,17 @@ def compare_query(req: CompareQueryRequest):
     snippets = '\n'.join([f"- {r['author']}: {r['content'][:200]}" for r in combined])
     summary = ''
     try:
-        if not anthropic_client:
-            raise ValueError('Anthropic client not configured')
-        msg = anthropic_client.messages.create(
-            model='claude-sonnet-4-5',
+        if not summary_client:
+            raise ValueError('Summary client not configured')
+        msg = summary_client.chat.completions.create(
+            model=SUMMARY_MODEL,
             max_tokens=512,
             messages=[{
                 'role': 'user',
                 'content': f'Query: "{req.query}"\n\nRelevant posts:\n{snippets}\n\nWrite a 2-3 sentence grounded summary of what these posts say about the query. Cite specific people or sources.'
             }]
         )
-        summary = msg.content[0].text
+        summary = msg.choices[0].message.content
     except Exception as e:
         summary = f'(summary unavailable: {e})'
 
