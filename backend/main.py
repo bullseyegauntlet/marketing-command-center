@@ -202,6 +202,30 @@ def keyword_query(req: KeywordQueryRequest):
 
         cur.execute(sql, params)
         results = [dict(r) for r in cur.fetchall()]
+
+        # Fallback: if full-text returns nothing, try ILIKE on individual words
+        if not results:
+            words = [w.strip() for w in req.query.split() if len(w.strip()) > 2]
+            if words:
+                like_conditions = ' OR '.join(['content ILIKE %s'] * len(words))
+                fallback_sql = f"""
+                    SELECT id, platform, author, content, source_url, published_at,
+                           likes, retweets, replies, channel, 0.0 as rank
+                    FROM posts
+                    WHERE {like_conditions}
+                """
+                fallback_params = [f'%{w}%' for w in words]
+                if req.platform:
+                    fallback_sql += " AND platform = %s"
+                    fallback_params.append(req.platform)
+                if req.days:
+                    fallback_sql += " AND published_at >= NOW() - INTERVAL '%s days'"
+                    fallback_params.append(req.days)
+                fallback_sql += " ORDER BY published_at DESC LIMIT %s"
+                fallback_params.append(req.limit)
+                cur.execute(fallback_sql, fallback_params)
+                results = [dict(r) for r in cur.fetchall()]
+
         for r in results:
             if r.get('published_at'):
                 r['published_at'] = r['published_at'].isoformat()
