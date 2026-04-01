@@ -23,7 +23,11 @@ from pydantic import BaseModel
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
 
 DB_URL = os.getenv('DATABASE_URL')
+# Support OpenRouter (preferred) or OpenAI directly
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+EMBEDDING_API_KEY = OPENROUTER_API_KEY or OPENAI_API_KEY
+EMBEDDING_BASE_URL = 'https://openrouter.ai/api/v1' if OPENROUTER_API_KEY else None
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 EMBEDDING_MODEL = 'text-embedding-3-small'
 
@@ -58,7 +62,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+openai_client = OpenAI(api_key=EMBEDDING_API_KEY, base_url=EMBEDDING_BASE_URL) if EMBEDDING_API_KEY else None
 anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
 
 

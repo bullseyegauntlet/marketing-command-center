@@ -27,7 +27,10 @@ X_ACCESS_TOKEN_SECRET = os.getenv('X_ACCESS_TOKEN_SECRET')
 X_LIST_ID = os.getenv('X_LIST_ID')
 ALERT_CHANNEL = os.getenv('SLACK_ALERT_CHANNEL')
 SLACK_TOKEN = os.getenv('SLACK_BOT_TOKEN')
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+EMBEDDING_API_KEY = OPENROUTER_API_KEY or OPENAI_API_KEY
+EMBEDDING_BASE_URL = 'https://openrouter.ai/api/v1' if OPENROUTER_API_KEY else None
 EMBEDDING_MODEL = 'text-embedding-3-small'
 DEAD_LETTER_PATH = os.path.join(os.path.dirname(__file__), '../logs/dead_letter_x.json')
 
@@ -130,7 +133,7 @@ def fetch_list_tweets(since_id: Optional[str] = None) -> tuple[list, dict]:
 def run():
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    openai_client = OpenAI(api_key=EMBEDDING_API_KEY, base_url=EMBEDDING_BASE_URL)
 
     cur.execute('SELECT last_id, consecutive_failures FROM ingestion_checkpoints WHERE source = %s', ('x',))
     row = cur.fetchone()

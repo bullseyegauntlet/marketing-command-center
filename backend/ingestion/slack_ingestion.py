@@ -23,7 +23,10 @@ DB_URL = os.getenv('DATABASE_URL')
 SLACK_TOKEN = os.getenv('SLACK_BOT_TOKEN')
 CHANNEL_IDS = [c.strip() for c in os.getenv('SLACK_CHANNEL_IDS', '').split(',') if c.strip()]
 ALERT_CHANNEL = os.getenv('SLACK_ALERT_CHANNEL')
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+EMBEDDING_API_KEY = OPENROUTER_API_KEY or OPENAI_API_KEY
+EMBEDDING_BASE_URL = 'https://openrouter.ai/api/v1' if OPENROUTER_API_KEY else None
 EMBEDDING_MODEL = 'text-embedding-3-small'
 DEAD_LETTER_PATH = os.path.join(os.path.dirname(__file__), '../logs/dead_letter.json')
 
@@ -217,7 +220,7 @@ def ingest_channel(cur, conn, openai_client: OpenAI, channel_id: str, oldest_ts:
 def run():
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    openai_client = OpenAI(api_key=EMBEDDING_API_KEY, base_url=EMBEDDING_BASE_URL)
 
     # Get checkpoint
     cur.execute('SELECT last_id, consecutive_failures FROM ingestion_checkpoints WHERE source = %s', ('slack',))
