@@ -377,7 +377,13 @@ def keyword_query(req: KeywordQueryRequest):
             words = [w.strip() for w in search_text.split()
                      if len(w.strip()) > 3 and w.strip().lower() not in STOPWORDS]
             if words:
-                like_conditions = ' AND '.join(['content ILIKE %s'] * len(words))
+                # Use OR for multiple words but require at least 1 match per word via scoring.
+                # For 1-2 words: AND (must match all). For 3+ words: OR (match any) so broad
+                # queries like "video generation tools" still find "Sora video model" posts.
+                if len(words) <= 2:
+                    like_conditions = ' AND '.join(['content ILIKE %s'] * len(words))
+                else:
+                    like_conditions = ' OR '.join(['content ILIKE %s'] * len(words))
                 fallback_sql = f"""
                     SELECT id, platform, author, content, source_url, published_at,
                            likes, retweets, replies, channel, 0.0 as rank
