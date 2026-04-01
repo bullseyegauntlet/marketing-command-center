@@ -206,7 +206,13 @@ def keyword_query(req: KeywordQueryRequest):
             sql += " AND published_at >= NOW() - INTERVAL '%s days'"
             params.append(req.days)
 
-        sql += " ORDER BY rank DESC, published_at DESC LIMIT %s"
+        # Blend relevance rank with recency: rank * 0.7 + recency_score * 0.3
+        # recency_score decays over 90 days so recent posts rank higher when relevance is similar
+        sql += """ ORDER BY (
+            ts_rank(content_tsv, plainto_tsquery('english', %s))::float * 0.7
+            + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - published_at)) / 7776000.0) * 0.3
+        ) DESC LIMIT %s"""
+        params.append(req.query)  # second ts_rank ref in ORDER BY
         params.append(req.limit)
 
         cur.execute(sql, params)
