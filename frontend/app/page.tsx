@@ -5,45 +5,29 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResultCard } from "@/components/result-card";
 import {
-  queryKeyword,
   querySemantic,
-  queryCompare,
+  querySemanticWithSummary,
   type QueryResult,
-  type CompareResult,
   type Post,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type Mode = "keyword" | "semantic" | "side-by-side";
+type Mode = "semantic" | "with-summary";
 
 const modes: { id: Mode; label: string; desc: string }[] = [
-  { id: "keyword", label: "Keyword", desc: "Full-text PostgreSQL search" },
   { id: "semantic", label: "Semantic", desc: "pgvector similarity search" },
-  { id: "side-by-side", label: "Side-by-Side", desc: "Both engines + AI summary" },
+  { id: "with-summary", label: "With Summary", desc: "Semantic search + Claude AI summary" },
 ];
 
 function ResultsColumn({
-  label,
   result,
   loading,
 }: {
-  label?: string;
   result: QueryResult | null;
   loading: boolean;
 }) {
   return (
     <div className="flex-1 min-w-0">
-      {label && (
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">{label}</span>
-          {result && (
-            <span className="text-xs font-mono text-primary/70">{result.count} results</span>
-          )}
-          {result?.latency_ms && (
-            <span className="text-xs font-mono text-muted-foreground ml-auto">{result.latency_ms}ms</span>
-          )}
-        </div>
-      )}
       {loading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
@@ -87,15 +71,12 @@ function SummaryBox({ summary }: { summary: string }) {
 
 export default function QueryPage() {
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<Mode>("keyword");
+  const [mode, setMode] = useState<Mode>("semantic");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<QueryResult | null>(null);
 
-  const [keywordResult, setKeywordResult] = useState<QueryResult | null>(null);
-  const [semanticResult, setSemanticResult] = useState<QueryResult | null>(null);
-  const [compareResult, setCompareResult] = useState<CompareResult | null>(null);
-
-  const hasResults = keywordResult !== null || semanticResult !== null || compareResult !== null;
+  const hasResults = result !== null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,20 +84,15 @@ export default function QueryPage() {
 
     setLoading(true);
     setError(null);
-    setKeywordResult(null);
-    setSemanticResult(null);
-    setCompareResult(null);
+    setResult(null);
 
     try {
-      if (mode === "keyword") {
-        const res = await queryKeyword(query.trim());
-        setKeywordResult(res);
-      } else if (mode === "semantic") {
+      if (mode === "semantic") {
         const res = await querySemantic(query.trim());
-        setSemanticResult(res);
+        setResult(res);
       } else {
-        const res = await queryCompare(query.trim());
-        setCompareResult(res);
+        const res = await querySemanticWithSummary(query.trim());
+        setResult(res);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Query failed");
@@ -211,76 +187,38 @@ export default function QueryPage() {
       {/* Results */}
       {(loading || hasResults) && (
         <div>
-          {/* Side-by-Side Mode */}
-          {mode === "side-by-side" && (
-            <div className="space-y-4">
-              {/* Summary */}
-              {compareResult?.summary && !loading && (
-                <SummaryBox summary={compareResult.summary} />
+          {/* Meta row */}
+          {!loading && result && (
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+                Semantic results
+              </span>
+              <span className="text-xs font-mono text-primary/70">
+                {result.count ?? 0} posts
+              </span>
+              {result.latency_ms && (
+                <span className="text-xs font-mono text-muted-foreground ml-auto">
+                  {result.latency_ms}ms
+                </span>
               )}
-              {loading && (
-                <div className="border border-primary/20 rounded-lg p-4 bg-primary/5 mb-4 space-y-2">
-                  <Skeleton className="h-3 w-32" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-5/6" />
-                </div>
-              )}
-
-              {/* Latency */}
-              {compareResult?.latency_ms && !loading && (
-                <div className="text-xs font-mono text-muted-foreground text-right">
-                  total: {compareResult.latency_ms}ms
-                </div>
-              )}
-
-              {/* Columns */}
-              <div className="flex gap-4">
-                <ResultsColumn
-                  label="KEYWORD"
-                  result={compareResult?.keyword ?? null}
-                  loading={loading}
-                />
-                <div className="w-px bg-border" />
-                <ResultsColumn
-                  label="SEMANTIC"
-                  result={compareResult?.semantic ?? null}
-                  loading={loading}
-                />
-              </div>
             </div>
           )}
 
-          {/* Single column modes */}
-          {mode !== "side-by-side" && (
-            <div>
-              {/* Meta row */}
-              {!loading && (keywordResult || semanticResult) && (
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                    {mode === "keyword" ? "Keyword" : "Semantic"} results
-                  </span>
-                  <span className="text-xs font-mono text-primary/70">
-                    {(keywordResult ?? semanticResult)?.count ?? 0} posts
-                  </span>
-                  {(keywordResult ?? semanticResult)?.latency_ms && (
-                    <span className="text-xs font-mono text-muted-foreground ml-auto">
-                      {(keywordResult ?? semanticResult)?.latency_ms}ms
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Summary if semantic */}
-              {!loading && semanticResult?.summary && (
-                <SummaryBox summary={semanticResult.summary} />
-              )}
-
-              <ResultsColumn
-                result={keywordResult ?? semanticResult}
-                loading={loading}
-              />
+          {/* Summary loading skeleton */}
+          {loading && mode === "with-summary" && (
+            <div className="border border-primary/20 rounded-lg p-4 bg-primary/5 mb-4 space-y-2">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-5/6" />
             </div>
           )}
+
+          {/* Claude summary (with-summary mode) */}
+          {!loading && result?.summary && (
+            <SummaryBox summary={result.summary} />
+          )}
+
+          <ResultsColumn result={result} loading={loading} />
         </div>
       )}
 

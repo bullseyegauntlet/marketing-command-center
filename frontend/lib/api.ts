@@ -24,19 +24,12 @@ export interface QueryResult {
   count: number;
 }
 
-export interface CompareResult {
-  keyword: QueryResult;
-  semantic: QueryResult;
-  summary?: string;
-  latency_ms?: number;
-}
-
 export interface HistoryEntry {
   id: string;
   user_id?: string;
   query_text: string;
   filters?: Record<string, unknown>;
-  engine: "keyword" | "semantic" | "side_by_side";
+  engine: "semantic" | "semantic_with_summary";
   summary?: string;
   results_snapshot?: unknown;
   result_count: number;
@@ -91,17 +84,6 @@ function normalizeQueryResult(raw: Record<string, unknown>): QueryResult {
   };
 }
 
-export async function queryKeyword(
-  q: string,
-  filters?: Record<string, unknown>
-): Promise<QueryResult> {
-  const raw = await apiFetch<Record<string, unknown>>("/api/query/keyword", {
-    method: "POST",
-    body: JSON.stringify({ query: q, filters }),
-  });
-  return normalizeQueryResult(raw);
-}
-
 export async function querySemantic(
   q: string,
   filters?: Record<string, unknown>
@@ -113,20 +95,15 @@ export async function querySemantic(
   return normalizeQueryResult(raw);
 }
 
-export async function queryCompare(
+export async function querySemanticWithSummary(
   q: string,
   filters?: Record<string, unknown>
-): Promise<CompareResult> {
-  const raw = await apiFetch<Record<string, unknown>>("/api/query/compare", {
+): Promise<QueryResult> {
+  const raw = await apiFetch<Record<string, unknown>>("/api/query/semantic-with-summary", {
     method: "POST",
     body: JSON.stringify({ query: q, filters }),
   });
-  return {
-    keyword: normalizeQueryResult(raw.keyword as Record<string, unknown>),
-    semantic: normalizeQueryResult(raw.semantic as Record<string, unknown>),
-    summary: raw.summary as string | undefined,
-    latency_ms: raw.latency_ms as number | undefined,
-  };
+  return normalizeQueryResult(raw);
 }
 
 export async function getStats(): Promise<Stats> {

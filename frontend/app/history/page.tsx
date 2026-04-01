@@ -18,16 +18,18 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const engineColors = {
+const engineColors: Record<string, string> = {
   keyword: "text-amber-400 bg-amber-400/10 border-amber-400/20",
   semantic: "text-sky-400 bg-sky-400/10 border-sky-400/20",
   side_by_side: "text-violet-400 bg-violet-400/10 border-violet-400/20",
+  semantic_with_summary: "text-violet-400 bg-violet-400/10 border-violet-400/20",
 };
 
-const engineLabels = {
+const engineLabels: Record<string, string> = {
   keyword: "Keyword",
   semantic: "Semantic",
   side_by_side: "Side-by-Side",
+  semantic_with_summary: "With Summary",
 };
 
 function HistoryRowSkeleton() {
@@ -58,7 +60,7 @@ function HistoryRow({
   const [detail, setDetail] = useState<HistoryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const engineClass = engineColors[entry.engine] ?? engineColors.keyword;
+  const engineClass = engineColors[entry.engine] ?? engineColors.semantic;
 
   useEffect(() => {
     if (isExpanded && !detail) {

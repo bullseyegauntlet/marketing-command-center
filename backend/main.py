@@ -38,48 +38,6 @@ MONTHS = {
     'sep':9,'sept':9,'oct':10,'nov':11,'dec':12,
 }
 
-def parse_platform(query: str) -> Tuple[str, Optional[str]]:
-    """
-    Detect platform filters from query text.
-    Returns: (cleaned_query, platform) where platform is 'x', 'slack', or None.
-    Matches: 'on slack', 'from slack', 'in slack', 'on x', 'on twitter',
-             'slack posts', 'x posts', 'twitter posts', etc.
-    """
-    q = query
-    platform = None
-
-    patterns_slack = [
-        r'\b(?:on|from|in|about)\s+slack\b',
-        r'\bslack\s+(?:posts?|messages?|content|discussions?|conversations?)\b',
-        r'\bslack\s+only\b',
-        r'\bfrom\s+the\s+slack\b',
-        r'\bslack\s+channel\b',
-    ]
-    patterns_x = [
-        r'\b(?:on|from|in)\s+(?:x|twitter)\b',
-        r'\b(?:x|twitter)\s+(?:posts?|tweets?|content|opinions?|discussions?|thoughts?)\b',
-        r'\b(?:x|twitter)\s+only\b',
-        r'\bfrom\s+(?:x|twitter)\b',
-        r'\btwitter\b',   # bare "twitter" always means X platform
-    ]
-
-    for pat in patterns_slack:
-        if re.search(pat, q, re.IGNORECASE):
-            platform = 'slack'
-            q = re.sub(pat, '', q, flags=re.IGNORECASE).strip()
-            break
-
-    if not platform:
-        for pat in patterns_x:
-            if re.search(pat, q, re.IGNORECASE):
-                platform = 'x'
-                q = re.sub(pat, '', q, flags=re.IGNORECASE).strip()
-                break
-
-    # Clean up extra whitespace/punctuation left after extraction
-    q = re.sub(r'\s{2,}', ' ', q).strip().strip(',').strip()
-    return q, platform
-
 
 def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
     """
@@ -223,13 +181,6 @@ def embed(text: str) -> list:
 
 # ─── Request/Response Models ───────────────────────────────────────────────
 
-class KeywordQueryRequest(BaseModel):
-    query: str
-    platform: Optional[str] = None
-    channel: Optional[str] = None
-    limit: int = 20
-    days: Optional[int] = None
-
 class SemanticQueryRequest(BaseModel):
     query: str
     platform: Optional[str] = None
@@ -308,164 +259,46 @@ def stats():
         conn.close()
 
 
-# ─── Keyword Query ─────────────────────────────────────────────────────────
-
-@app.post('/api/query/keyword')
-def keyword_query(req: KeywordQueryRequest):
-    start = time.time()
-    conn = get_conn()
-    cur = conn.cursor()
-    try:
-        # Parse platform filter from query text, then temporal expressions
-        query_after_platform, detected_platform = parse_platform(req.query)
-        effective_platform = detected_platform or req.platform
-        clean_query, date_from, date_to = parse_temporal(query_after_platform)
-        search_text = clean_query if clean_query else query_after_platform
-
-        params = [search_text]
-        sql = """
-            SELECT id, platform, author, content, source_url, published_at,
-                   likes, retweets, replies, channel,
-                   ts_rank(content_tsv, plainto_tsquery('english', %s))::float as rank
-            FROM posts
-            WHERE content_tsv @@ plainto_tsquery('english', %s)
-        """
-        params.append(search_text)
-
-        # Apply temporal filters (from query text or explicit request params)
-        if date_from and not date_from.startswith('NOW'):
-            sql += " AND published_at >= %s"
-            params.append(date_from)
-        elif date_from:
-            sql += f" AND published_at >= {date_from}"
-        if date_to:
-            sql += " AND published_at <= %s"
-            params.append(date_to)
-        if effective_platform:
-            sql += " AND platform = %s"
-            params.append(effective_platform)
-        if req.channel:
-            sql += " AND channel = %s"
-            params.append(req.channel)
-        if req.days and not date_from:
-            sql += " AND published_at >= NOW() - INTERVAL '%s days'"
-            params.append(req.days)
-
-        # When time range is explicit: rank by relevance only
-        # When no time filter: blend relevance 70% + recency 30%
-        if date_from or date_to or req.days:
-            sql += """ ORDER BY ts_rank(content_tsv, plainto_tsquery('english', %s))::float DESC LIMIT %s"""
-            params.append(search_text)
-        else:
-            sql += """ ORDER BY (
-                ts_rank(content_tsv, plainto_tsquery('english', %s))::float * 0.7
-                + GREATEST(0, 1 - EXTRACT(EPOCH FROM (NOW() - published_at)) / 7776000.0) * 0.3
-            ) DESC LIMIT %s"""
-            params.append(search_text)
-        params.append(req.limit)
-
-        cur.execute(sql, params)
-        results = [dict(r) for r in cur.fetchall()]
-
-        # Fallback: if full-text returns nothing, try ILIKE on meaningful words only
-        # Skip common English stopwords that match everything
-        STOPWORDS = {'what','are','the','most','mentioned','about','with','this','that',
-                     'from','have','been','will','were','they','them','their','there',
-                     'when','where','which','who','how','why','all','any','some','more',
-                     'very','just','also','into','over','than','then','these','those'}
-        if not results:
-            words = [w.strip() for w in search_text.split()
-                     if len(w.strip()) > 3 and w.strip().lower() not in STOPWORDS]
-            if words:
-                # Use OR for multiple words but require at least 1 match per word via scoring.
-                # For 1-2 words: AND (must match all). For 3+ words: OR (match any) so broad
-                # queries like "video generation tools" still find "Sora video model" posts.
-                if len(words) <= 2:
-                    like_conditions = ' AND '.join(['content ILIKE %s'] * len(words))
-                else:
-                    like_conditions = ' OR '.join(['content ILIKE %s'] * len(words))
-                fallback_sql = f"""
-                    SELECT id, platform, author, content, source_url, published_at,
-                           likes, retweets, replies, channel, 0.0 as rank
-                    FROM posts
-                    WHERE {like_conditions}
-                """
-                fallback_params = [f'%{w}%' for w in words]
-                # Apply same temporal filters as main query
-                if date_from and not date_from.startswith('NOW'):
-                    fallback_sql += " AND published_at >= %s"
-                    fallback_params.append(date_from)
-                elif date_from:
-                    fallback_sql += f" AND published_at >= {date_from}"
-                if date_to:
-                    fallback_sql += " AND published_at <= %s"
-                    fallback_params.append(date_to)
-                if effective_platform:
-                    fallback_sql += " AND platform = %s"
-                    fallback_params.append(effective_platform)
-                if req.days and not date_from:
-                    fallback_sql += " AND published_at >= NOW() - INTERVAL '%s days'"
-                    fallback_params.append(req.days)
-                fallback_sql += " ORDER BY published_at DESC LIMIT %s"
-                fallback_params.append(req.limit)
-                cur.execute(fallback_sql, fallback_params)
-                results = [dict(r) for r in cur.fetchall()]
-
-            # Last resort: if no meaningful words or ILIKE found nothing but we have a date range,
-            # return most-engaged posts from that period — ONLY if no platform filter is active
-            # (if platform was specified and nothing found, return empty rather than wrong platform)
-            if not results and (date_from or date_to) and not effective_platform:
-                last_resort_sql = """
-                    SELECT id, platform, author, content, source_url, published_at,
-                           likes, retweets, replies, channel, 0.0 as rank
-                    FROM posts WHERE 1=1
-                """
-                last_resort_params = []
-                if date_from and not date_from.startswith('NOW'):
-                    last_resort_sql += " AND published_at >= %s"
-                    last_resort_params.append(date_from)
-                elif date_from:
-                    last_resort_sql += f" AND published_at >= {date_from}"
-                if date_to:
-                    last_resort_sql += " AND published_at <= %s"
-                    last_resort_params.append(date_to)
-                last_resort_sql += " ORDER BY (likes + retweets * 2) DESC, published_at DESC LIMIT %s"
-                last_resort_params.append(req.limit)
-                cur.execute(last_resort_sql, last_resort_params)
-                results = [dict(r) for r in cur.fetchall()]
-
-        for r in results:
-            if r.get('published_at'):
-                r['published_at'] = r['published_at'].isoformat()
-            # Ensure all numeric fields are native Python types
-            for k, v in r.items():
-                if isinstance(v, Decimal):
-                    r[k] = float(v)
-
-        latency_ms = int((time.time() - start) * 1000)
-
-        # Save to query_history
-        cur.execute("""
-            INSERT INTO query_history (user_id, query_text, filters, engine, results_snapshot, result_count, latency_ms)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, ('system', req.query,
-              json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}, default=safe_json),
-              'keyword', json.dumps(results[:5], default=safe_json), len(results), latency_ms))
-        conn.commit()
-
-        return {'results': results, 'posts': results, 'count': len(results), 'latency_ms': latency_ms}
-    finally:
-        cur.close()
-        conn.close()
-
-
 # ─── Semantic Query ────────────────────────────────────────────────────────
+
+def _parse_platform(query: str) -> Tuple[str, Optional[str]]:
+    """Detect platform filter from query text (x/slack)."""
+    q = query
+    platform = None
+    patterns_slack = [
+        r'\b(?:on|from|in|about)\s+slack\b',
+        r'\bslack\s+(?:posts?|messages?|content|discussions?|conversations?)\b',
+        r'\bslack\s+only\b',
+        r'\bfrom\s+the\s+slack\b',
+        r'\bslack\s+channel\b',
+    ]
+    patterns_x = [
+        r'\b(?:on|from|in)\s+(?:x|twitter)\b',
+        r'\b(?:x|twitter)\s+(?:posts?|tweets?|content|opinions?|discussions?|thoughts?)\b',
+        r'\b(?:x|twitter)\s+only\b',
+        r'\bfrom\s+(?:x|twitter)\b',
+        r'\btwitter\b',
+    ]
+    for pat in patterns_slack:
+        if re.search(pat, q, re.IGNORECASE):
+            platform = 'slack'
+            q = re.sub(pat, '', q, flags=re.IGNORECASE).strip()
+            break
+    if not platform:
+        for pat in patterns_x:
+            if re.search(pat, q, re.IGNORECASE):
+                platform = 'x'
+                q = re.sub(pat, '', q, flags=re.IGNORECASE).strip()
+                break
+    q = re.sub(r'\s{2,}', ' ', q).strip().strip(',').strip()
+    return q, platform
+
 
 @app.post('/api/query/semantic')
 def semantic_query(req: SemanticQueryRequest):
     start = time.time()
     # Parse temporal expressions before embedding (embed the clean query)
-    query_after_platform, detected_platform = parse_platform(req.query)
+    query_after_platform, detected_platform = _parse_platform(req.query)
     effective_platform = detected_platform or req.platform
     clean_query, date_from, date_to = parse_temporal(query_after_platform)
     search_text = clean_query if clean_query else query_after_platform
@@ -536,24 +369,18 @@ def semantic_query(req: SemanticQueryRequest):
         conn.close()
 
 
-# ─── Compare Query ─────────────────────────────────────────────────────────
+# ─── Semantic with Summary ─────────────────────────────────────────────────
 
-@app.post('/api/query/compare')
-def compare_query(req: CompareQueryRequest):
+@app.post('/api/query/semantic-with-summary')
+def semantic_with_summary(req: CompareQueryRequest):
     start = time.time()
 
-    # Run both in parallel via threads
-    keyword_req = KeywordQueryRequest(query=req.query, platform=req.platform,
-                                       channel=req.channel, limit=req.limit, days=req.days)
-    semantic_req = SemanticQueryRequest(query=req.query, platform=req.platform,
-                                         channel=req.channel, limit=req.limit, days=req.days)
-
-    kw_results = keyword_query(keyword_req)
-    sem_results = semantic_query(semantic_req)
+    sem_req = SemanticQueryRequest(query=req.query, platform=req.platform,
+                                   channel=req.channel, limit=req.limit, days=req.days)
+    sem_results = semantic_query(sem_req)
 
     # Generate grounded summary via Claude
-    combined = kw_results['results'][:5] + sem_results['results'][:5]
-    snippets = '\n'.join([f"- {r['author']}: {r['content'][:200]}" for r in combined])
+    snippets = '\n'.join([f"- {r['author']}: {r['content'][:200]}" for r in sem_results['results'][:10]])
     summary = ''
     try:
         if not summary_client:
@@ -580,18 +407,19 @@ def compare_query(req: CompareQueryRequest):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, ('system', req.query,
               json.dumps({'platform': req.platform, 'channel': req.channel, 'days': req.days}, default=safe_json),
-              'side_by_side', summary,
-              json.dumps({'keyword': kw_results['results'][:3], 'semantic': sem_results['results'][:3]}, default=safe_json),
-              kw_results['count'] + sem_results['count'], latency_ms))
+              'semantic_with_summary', summary,
+              json.dumps(sem_results['results'][:5], default=safe_json),
+              sem_results['count'], latency_ms))
         conn.commit()
     finally:
         cur.close()
         conn.close()
 
     return {
-        'keyword': kw_results,
-        'semantic': sem_results,
+        'results': sem_results['results'],
+        'posts': sem_results['results'],
         'summary': summary,
+        'count': sem_results['count'],
         'latency_ms': latency_ms,
     }
 
