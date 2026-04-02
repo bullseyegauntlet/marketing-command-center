@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResultCard } from "@/components/result-card";
 import {
@@ -12,12 +11,11 @@ import {
 
 function SummaryBox({ summary }: { summary: string }) {
   return (
-    <div className="border border-primary/20 rounded-lg p-4 bg-primary/5 mb-6">
+    <div className="rounded-xl border border-[#c5cae9] bg-[#e8f0fe] p-4 mb-6">
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-mono text-primary uppercase tracking-widest">Claude Summary</span>
-        <div className="flex-1 h-px bg-primary/20" />
+        <span className="text-xs font-semibold text-primary uppercase tracking-wide">AI Summary</span>
       </div>
-      <p className="text-sm text-foreground/90 leading-relaxed">{summary}</p>
+      <p className="text-sm text-foreground leading-relaxed">{summary}</p>
     </div>
   );
 }
@@ -53,99 +51,112 @@ export default function QueryPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Intelligence Query</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Search across ingested X and Slack content
-        </p>
-      </div>
+  const hasResults = result !== null;
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex gap-3">
-          <div className="flex-1 relative">
+  return (
+    <div className="space-y-8">
+      {/* Search area */}
+      <div className={hasResults ? "mb-2" : "pt-16 pb-4"}>
+        {!hasResults && (
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-semibold text-foreground mb-2">
+              Marketing Intelligence
+            </h1>
+            <p className="text-muted-foreground text-base">
+              Search across your Slack channels and X posts
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="relative flex items-center border border-border rounded-full shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-primary/40 bg-white transition-all px-5 py-3">
+            <svg className="w-4 h-4 text-muted-foreground shrink-0 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="What is Gauntlet AI's community saying about AI agents?"
-              rows={2}
-              className="w-full rounded-lg bg-secondary border border-border px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground font-mono resize-none focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary/50 transition-all"
+              placeholder="Ask anything about your marketing channels…"
+              rows={1}
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none leading-6"
+              style={{ minHeight: "24px", maxHeight: "120px" }}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = "24px";
+                el.style.height = Math.min(el.scrollHeight, 120) + "px";
+              }}
             />
-            <span className="absolute bottom-2 right-3 text-xs text-muted-foreground/50 font-mono">⏎ run</span>
+            <button
+              type="submit"
+              disabled={loading || !query.trim()}
+              className="ml-3 shrink-0 px-5 py-1.5 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Searching
+                </span>
+              ) : "Search"}
+            </button>
           </div>
-          <Button
-            type="submit"
-            disabled={loading || !query.trim()}
-            className="px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-mono self-stretch"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Running
-              </span>
-            ) : (
-              "Run →"
-            )}
-          </Button>
-        </div>
-      </form>
+        </form>
+      </div>
 
+      {/* Error */}
       {error && (
-        <div className="border border-destructive/30 bg-destructive/10 rounded-lg px-4 py-3 text-sm text-destructive font-mono">
-          ✕ {error}
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
       )}
 
-      {(loading || result !== null) && (
+      {/* Results area */}
+      {(loading || hasResults) && (
         <div>
-          {/* Summary skeleton while loading */}
+          {/* Summary skeleton */}
           {loading && (
-            <div className="border border-primary/20 rounded-lg p-4 bg-primary/5 mb-6 space-y-2">
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-5/6" />
+            <div className="rounded-xl border border-[#c5cae9] bg-[#e8f0fe] p-4 mb-6 space-y-2">
+              <Skeleton className="h-3 w-24 bg-blue-200" />
+              <Skeleton className="h-3 w-full bg-blue-200" />
+              <Skeleton className="h-3 w-4/5 bg-blue-200" />
             </div>
           )}
 
-          {/* Claude summary */}
-          {!loading && result?.summary && (
-            <SummaryBox summary={result.summary} />
-          )}
+          {/* AI summary */}
+          {!loading && result?.summary && <SummaryBox summary={result.summary} />}
 
           {/* Meta row */}
           {!loading && result && (
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Results</span>
-              <span className="text-xs font-mono text-primary/70">{result.count ?? 0} posts</span>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{result.count ?? 0}</span> results
+              </span>
               {result.latency_ms && (
-                <span className="text-xs font-mono text-muted-foreground ml-auto">{result.latency_ms}ms</span>
+                <span className="text-xs text-muted-foreground">({result.latency_ms}ms)</span>
               )}
             </div>
           )}
 
-          {/* Results */}
+          {/* Cards */}
           {loading ? (
             <div className="space-y-3">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="border border-border rounded-lg p-4 bg-card space-y-2">
-                  <div className="flex gap-2">
-                    <Skeleton className="h-4 w-12" />
-                    <Skeleton className="h-4 w-24" />
+                <div key={i} className="border border-border rounded-xl p-4 bg-white space-y-3">
+                  <div className="flex gap-2 items-center">
+                    <Skeleton className="h-5 w-10 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
                   </div>
                   <Skeleton className="h-3 w-full" />
                   <Skeleton className="h-3 w-4/5" />
-                  <Skeleton className="h-3 w-3/5" />
                 </div>
               ))}
             </div>
           ) : result?.posts.length === 0 ? (
-            <div className="border border-border rounded-lg p-8 text-center text-muted-foreground text-sm font-mono">
-              No results found.
+            <div className="text-center py-16 text-muted-foreground text-sm">
+              No results found. Try a different query.
             </div>
           ) : (
             <div className="space-y-3">
@@ -157,15 +168,18 @@ export default function QueryPage() {
         </div>
       )}
 
-      {!loading && result === null && !error && (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="text-4xl mb-4 opacity-20">◎</div>
-          <p className="text-muted-foreground text-sm font-mono">
-            Run a query to search across X and Slack content
-          </p>
-          <p className="text-muted-foreground/50 text-xs font-mono mt-1">
-            Shift+Enter for newline · Enter to run
-          </p>
+      {/* Empty state */}
+      {!loading && !hasResults && !error && (
+        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
+            <svg className="w-7 h-7 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-foreground">What are you looking for?</p>
+            <p className="text-xs text-muted-foreground mt-1">Try "What is the community saying about AI agents?" or "Latest Slack discussions on hiring"</p>
+          </div>
         </div>
       )}
     </div>
