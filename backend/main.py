@@ -23,6 +23,19 @@ from pydantic import BaseModel
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
 
+# ─── Slack User Map ────────────────────────────────────────────────────────
+_slack_users: dict = {}
+_slack_users_path = os.path.join(os.path.dirname(__file__), 'slack_users.json')
+if os.path.exists(_slack_users_path):
+    with open(_slack_users_path) as _f:
+        _slack_users = json.load(_f)
+
+def resolve_slack_author(author: str) -> str:
+    """Resolve a Slack user ID (e.g. U086X3AQH5M) to a display name."""
+    if author and author.startswith('U') and len(author) > 8:
+        return _slack_users.get(author, author)
+    return author
+
 def safe_json(obj):
     """JSON encoder that handles Decimal and other non-serializable types."""
     if isinstance(obj, Decimal):
@@ -192,7 +205,7 @@ class CompareQueryRequest(BaseModel):
     query: str
     platform: Optional[str] = None
     channel: Optional[str] = None
-    limit: int = 10
+    limit: int = 20
     days: Optional[int] = None
 
 
@@ -352,6 +365,8 @@ def semantic_query(req: SemanticQueryRequest):
             for k, v in r.items():
                 if isinstance(v, Decimal):
                     r[k] = float(v)
+            if r.get('platform') == 'slack':
+                r['author'] = resolve_slack_author(r.get('author', ''))
 
         latency_ms = int((time.time() - start) * 1000)
 
@@ -473,6 +488,13 @@ def query_history_detail(query_id: str):
         r = dict(row)
         if r.get('created_at'):
             r['created_at'] = r['created_at'].isoformat()
+        # Resolve Slack user IDs in snapshot
+        if r.get('results_snapshot'):
+            snapshot = r['results_snapshot'] if isinstance(r['results_snapshot'], list) else []
+            for res in snapshot:
+                if isinstance(res, dict) and res.get('platform') == 'slack':
+                    res['author'] = resolve_slack_author(res.get('author', ''))
+            r['results_snapshot'] = snapshot
         return r
     finally:
         cur.close()
