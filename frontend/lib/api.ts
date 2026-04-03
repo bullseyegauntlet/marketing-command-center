@@ -24,12 +24,19 @@ export interface QueryResult {
   count: number;
 }
 
+export interface CompareResult {
+  keyword: QueryResult;
+  semantic: QueryResult;
+  summary?: string;
+  latency_ms?: number;
+}
+
 export interface HistoryEntry {
   id: string;
   user_id?: string;
   query_text: string;
   filters?: Record<string, unknown>;
-  engine: "semantic" | "semantic_with_summary";
+  engine: "keyword" | "semantic" | "side_by_side";
   summary?: string;
   results_snapshot?: unknown;
   result_count: number;
@@ -74,74 +81,45 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-function normalizeQueryResult(raw: Record<string, unknown>): QueryResult {
-  const posts = (raw.posts ?? raw.results ?? []) as Post[];
-  return {
-    posts,
-    count: (raw.count as number) ?? posts.length,
-    latency_ms: raw.latency_ms as number | undefined,
-    summary: raw.summary as string | undefined,
-  };
+export async function queryKeyword(
+  q: string,
+  filters?: Record<string, unknown>
+): Promise<QueryResult> {
+  return apiFetch("/api/query/keyword", {
+    method: "POST",
+    body: JSON.stringify({ query: q, filters }),
+  });
 }
 
 export async function querySemantic(
   q: string,
   filters?: Record<string, unknown>
 ): Promise<QueryResult> {
-  const raw = await apiFetch<Record<string, unknown>>("/api/query/semantic", {
+  return apiFetch("/api/query/semantic", {
     method: "POST",
     body: JSON.stringify({ query: q, filters }),
   });
-  return normalizeQueryResult(raw);
 }
 
-export async function querySemanticWithSummary(
+export async function queryCompare(
   q: string,
   filters?: Record<string, unknown>
-): Promise<QueryResult> {
-  const raw = await apiFetch<Record<string, unknown>>("/api/query/semantic-with-summary", {
+): Promise<CompareResult> {
+  return apiFetch("/api/query/compare", {
     method: "POST",
     body: JSON.stringify({ query: q, filters }),
   });
-  return normalizeQueryResult(raw);
 }
 
 export async function getStats(): Promise<Stats> {
-  const raw = await apiFetch<Record<string, unknown>>("/api/stats");
-  // Normalize backend key variations
-  const byPlatform = (raw.posts_by_platform ?? raw.by_platform ?? {}) as { x?: number; slack?: number };
-  // Pull last_ingestion from the stats response, or synthesize from pipelines if missing
-  let lastIngestion = (raw.last_ingestion as Stats["last_ingestion"]) ?? [];
-  if (!lastIngestion.length && raw.pipelines) {
-    const pipelines = raw.pipelines as Record<string, { status: string; last_run_at: string | null }>;
-    lastIngestion = Object.entries(pipelines).map(([source, p]) => ({
-      source,
-      status: p.status,
-      last_run_at: p.last_run_at ?? "",
-    }));
-  }
-  return {
-    total_posts: raw.total_posts as number,
-    posts_by_platform: { x: byPlatform.x ?? 0, slack: byPlatform.slack ?? 0 },
-    last_ingestion: lastIngestion,
-    active_projects: raw.active_projects as number | undefined,
-  };
+  return apiFetch("/api/stats");
 }
 
 export async function getHistory(
   page = 1,
   pageSize = 20
 ): Promise<PaginatedHistory> {
-  const raw = await apiFetch<Record<string, unknown>>(
-    `/api/query/history?page=${page}&page_size=${pageSize}`
-  );
-  const items = (raw.items ?? raw.results ?? []) as HistoryEntry[];
-  return {
-    items,
-    total: (raw.total as number) ?? items.length,
-    page: (raw.page as number) ?? page,
-    page_size: (raw.page_size as number) ?? pageSize,
-  };
+  return apiFetch(`/api/query/history?page=${page}&page_size=${pageSize}`);
 }
 
 export async function getHistoryDetail(id: string): Promise<HistoryDetail> {
