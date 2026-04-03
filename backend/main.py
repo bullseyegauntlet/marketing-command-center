@@ -11,57 +11,17 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional, Tuple
 
-import httpx
 import psycopg2
 import psycopg2.extras
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Request, Depends
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from openai import OpenAI, RateLimitError as OpenAIRateLimitError
 from pydantic import BaseModel
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../.env'))
-
-# ─── Clerk Auth ────────────────────────────────────────────────────────────
-CLERK_SECRET_KEY = os.getenv('CLERK_SECRET_KEY', 'sk_test_QmRCvMeiEHa77w3cOGnRbSQrcxdfaNhRacT02xvaa1')
-ALLOWED_DOMAIN = 'gauntlethq.com'
-
-async def verify_clerk_token(request: Request):
-    """Verify Clerk session token and enforce @gauntlethq.com domain."""
-    # Skip auth for health endpoint
-    if request.url.path in ('/api/health',):
-        return None
-
-    auth_header = request.headers.get('Authorization', '')
-    if not auth_header.startswith('Bearer '):
-        raise HTTPException(status_code=401, detail='Missing or invalid Authorization header')
-
-    token = auth_header[7:]
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                'https://api.clerk.com/v1/tokens/verify',
-                params={'token': token},
-                headers={'Authorization': f'Bearer {CLERK_SECRET_KEY}'},
-                timeout=5.0,
-            )
-        if resp.status_code != 200:
-            raise HTTPException(status_code=401, detail='Invalid session token')
-        data = resp.json()
-        email = data.get('email', '') or ''
-        # Also check claims
-        if not email:
-            claims = data.get('claims', {}) or {}
-            email = claims.get('email', '') or ''
-        if not email.endswith(f'@{ALLOWED_DOMAIN}'):
-            raise HTTPException(status_code=403, detail=f'Access restricted to @{ALLOWED_DOMAIN} accounts')
-        return data
-    except HTTPException:
-        raise
-    except Exception:
-        raise HTTPException(status_code=401, detail='Token verification failed')
 
 # ─── Slack User Map ────────────────────────────────────────────────────────
 _slack_users: dict = {}
@@ -191,7 +151,6 @@ ALLOWED_ORIGINS = [
 app = FastAPI(
     title='Marketing Command Center',
     version='1.0.0',
-    dependencies=[Depends(verify_clerk_token)],
 )
 app.add_middleware(
     CORSMiddleware,
