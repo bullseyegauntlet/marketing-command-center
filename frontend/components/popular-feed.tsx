@@ -43,8 +43,8 @@ function PopularCard({ post, index = 0 }: { post: PopularPost; index?: number })
 
   return (
     <div
-      className="animate-card border border-border rounded-xl p-4 bg-white hover:shadow-sm hover:border-amber-200 transition-all duration-150"
-      style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
+      className="animate-card group relative bg-white border border-border rounded-2xl p-4 hover:border-amber-300/60 hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200"
+      style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -157,17 +157,17 @@ export function PopularFeed() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Platform filter */}
-        <div className="flex items-center rounded-full border border-border bg-white overflow-hidden text-xs font-medium">
+        <div className="flex items-center bg-white border border-border rounded-xl p-0.5 text-xs font-medium shadow-sm">
           {(["all", "x", "slack"] as Platform[]).map((p) => (
             <button
               key={p}
               onClick={() => setPlatform(p)}
               className={cn(
-                "px-3 py-1.5 transition-colors",
+                "px-3 py-1.5 rounded-lg transition-all duration-150",
                 platform === p
-                  ? "bg-primary text-white"
+                  ? "bg-primary text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -177,16 +177,16 @@ export function PopularFeed() {
         </div>
 
         {/* Time range filter */}
-        <div className="flex items-center rounded-full border border-border bg-white overflow-hidden text-xs font-medium">
+        <div className="flex items-center bg-white border border-border rounded-xl p-0.5 text-xs font-medium shadow-sm">
           {([["7", "7d"], ["30", "30d"], ["all", "All time"]] as [TimeRange, string][]).map(
             ([val, label]) => (
               <button
                 key={val}
                 onClick={() => setTimeRange(val)}
                 className={cn(
-                  "px-3 py-1.5 transition-colors",
+                  "px-3 py-1.5 rounded-lg transition-all duration-150",
                   timeRange === val
-                    ? "bg-primary text-white"
+                    ? "bg-primary text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >

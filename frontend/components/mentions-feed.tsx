@@ -54,15 +54,15 @@ export function MentionsFeed() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Platform filter */}
-        <div className="flex items-center rounded-full border border-border bg-white overflow-hidden text-xs font-medium">
+        <div className="flex items-center bg-white border border-border rounded-xl p.0.5 text-xs font-medium shadow-sm">
           {(["all", "x", "reddit", "linkedin"] as Platform[]).map((p) => (
             <button
               key={p}
               onClick={() => setPlatform(p)}
               className={cn(
-                "px-3 py-1.5 transition-colors",
+                "px-3 py-1.5 rounded-lg transition-all duration-150",
                 platform === p
-                  ? "bg-primary text-white"
+                  ? "bg-primary text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -72,16 +72,16 @@ export function MentionsFeed() {
         </div>
 
         {/* Time range filter */}
-        <div className="flex items-center rounded-full border border-border bg-white overflow-hidden text-xs font-medium">
+        <div className="flex items-center bg-white border border-border rounded-xl p.0.5 text-xs font-medium shadow-sm">
           {([["1", "24h"], ["7", "7d"], ["30", "30d"]] as [TimeRange, string][]).map(
             ([val, label]) => (
               <button
                 key={val}
                 onClick={() => setTimeRange(val)}
                 className={cn(
-                  "px-3 py-1.5 transition-colors",
+                  "px-3 py-1.5 rounded-lg transition-all duration-150",
                   timeRange === val
-                    ? "bg-primary text-white"
+                    ? "bg-primary text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >

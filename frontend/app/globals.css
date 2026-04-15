@@ -40,25 +40,25 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #202124;
+  --background: #f7f8fc;
+  --foreground: #0f1117;
   --card: #ffffff;
-  --card-foreground: #202124;
+  --card-foreground: #0f1117;
   --popover: #ffffff;
-  --popover-foreground: #202124;
-  --primary: #1a73e8;
+  --popover-foreground: #0f1117;
+  --primary: #5b6cf8;
   --primary-foreground: #ffffff;
-  --secondary: #f8f9fa;
-  --secondary-foreground: #5f6368;
-  --muted: #f8f9fa;
-  --muted-foreground: #5f6368;
-  --accent: #e8f0fe;
-  --accent-foreground: #1a73e8;
-  --destructive: #d93025;
-  --border: #dadce0;
-  --input: #f8f9fa;
-  --ring: #1a73e8;
-  --radius: 0.5rem;
+  --secondary: #f0f1f7;
+  --secondary-foreground: #4a4f6a;
+  --muted: #f0f1f7;
+  --muted-foreground: #7b819e;
+  --accent: #ededfd;
+  --accent-foreground: #5b6cf8;
+  --destructive: #e84646;
+  --border: #e4e6f0;
+  --input: #f0f1f7;
+  --ring: #5b6cf8;
+  --radius: 0.75rem;
 }
 
 @layer base {
@@ -71,21 +71,61 @@
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
 }
 
-/* Staggered card reveal animation */
+/* ── Card entrance ── */
 @keyframes fadeSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-card {
+  animation: fadeSlideIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.animate-card {
-  animation: fadeSlideIn 0.25s ease-out both;
+/* ── Shimmer for skeletons ── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #e8eaf0 25%, #f4f5fa 50%, #e8eaf0 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── Glow on focused search bar ── */
+.search-glow:focus-within {
+  box-shadow: 0 0 0 3px rgba(91, 108, 248, 0.15), 0 4px 24px rgba(91, 108, 248, 0.1);
+}
+
+/* ── Subtle page gradient ── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(91, 108, 248, 0.07) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Tab underline transition ── */
+.tab-underline {
+  position: relative;
+}
+.tab-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px 2px 0 0;
+  transform: scaleX(0);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tab-underline.active::after {
+  transform: scaleX(1);
 }

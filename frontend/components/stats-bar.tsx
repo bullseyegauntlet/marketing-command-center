@@ -5,54 +5,50 @@ import { getStats, formatRelativeTime, type Stats } from "@/lib/api";
 
 export function StatsBar() {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
-    getStats()
-      .then(setStats)
-      .catch(() => setError(true));
+    getStats().then(setStats).catch(() => null);
   }, []);
 
-  const lastRun = stats?.last_ingestion
+  if (!stats) return null;
+
+  const lastRun = stats.last_ingestion
     ?.filter((i) => i.status === "success")
     .sort((a, b) => new Date(b.last_run_at).getTime() - new Date(a.last_run_at).getTime())[0];
 
-  if (error) return null;
-  if (!stats) return null;
-
   return (
-    <div className="bg-secondary border-b border-border">
-      <div className="container mx-auto px-6 max-w-4xl">
-        <div className="flex items-center gap-4 h-9 overflow-x-auto">
+    <div className="bg-white/60 backdrop-blur-sm border-b border-border/60">
+      <div className="container mx-auto px-6 max-w-5xl">
+        <div className="flex items-center gap-3 h-8 overflow-x-auto">
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs text-emerald-600 font-medium">Live</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-300" />
+            <span className="text-[11px] text-emerald-600 font-semibold tracking-wide uppercase">Live</span>
           </div>
-          <span className="text-border">·</span>
-          <span className="text-xs text-muted-foreground shrink-0">
-            <span className="font-medium text-foreground">{stats.total_posts.toLocaleString()}</span> posts
+          <div className="w-px h-3 bg-border shrink-0" />
+          <span className="text-[11px] text-muted-foreground shrink-0">
+            <span className="font-semibold text-foreground">{stats.total_posts.toLocaleString()}</span> posts
           </span>
-          {stats.posts_by_platform?.slack && (
+          {stats.posts_by_platform?.slack > 0 && (
             <>
-              <span className="text-border">·</span>
-              <span className="text-xs text-muted-foreground shrink-0">
-                <span className="font-medium text-foreground">{stats.posts_by_platform.slack.toLocaleString()}</span> Slack
+              <div className="w-px h-3 bg-border shrink-0" />
+              <span className="text-[11px] text-muted-foreground shrink-0">
+                <span className="font-semibold text-foreground">{stats.posts_by_platform.slack.toLocaleString()}</span> Slack
               </span>
             </>
           )}
-          {stats.posts_by_platform?.x && (
+          {stats.posts_by_platform?.x > 0 && (
             <>
-              <span className="text-border">·</span>
-              <span className="text-xs text-muted-foreground shrink-0">
-                <span className="font-medium text-foreground">{stats.posts_by_platform.x.toLocaleString()}</span> X
+              <div className="w-px h-3 bg-border shrink-0" />
+              <span className="text-[11px] text-muted-foreground shrink-0">
+                <span className="font-semibold text-foreground">{stats.posts_by_platform.x.toLocaleString()}</span> X
               </span>
             </>
           )}
           {lastRun && (
             <>
-              <span className="text-border">·</span>
-              <span className="text-xs text-muted-foreground shrink-0">
-                Updated <span className="font-medium text-foreground">{formatRelativeTime(lastRun.last_run_at)}</span>
+              <div className="w-px h-3 bg-border shrink-0" />
+              <span className="text-[11px] text-muted-foreground shrink-0">
+                Updated <span className="font-semibold text-foreground">{formatRelativeTime(lastRun.last_run_at)}</span>
               </span>
             </>
           )}
