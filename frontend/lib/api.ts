@@ -46,6 +46,7 @@ export interface Stats {
   posts_by_platform: {
     x: number;
     slack: number;
+    linkedin?: number;
   };
   last_ingestion: {
     source: string;
@@ -53,10 +54,24 @@ export interface Stats {
     status: string;
   }[];
   active_projects?: number;
+  mentions?: {
+    total: number;
+    last_24h: number;
+    x: number;
+    linkedin: number;
+  };
   popular?: {
     total: number;
     last_24h: number;
   };
+}
+
+export interface MentionsFeed {
+  mentions: Post[];
+  total: number;
+  page: number;
+  page_size: number;
+  by_platform: { x: number; linkedin: number };
 }
 
 export interface PopularPost extends Post {
@@ -171,6 +186,29 @@ export async function exportHistoryMarkdown(id: string): Promise<string> {
   const res = await fetch(`${API_URL}/api/query/history/${id}/export`);
   if (!res.ok) throw new Error(`Export failed: ${res.status}`);
   return res.text();
+}
+
+export async function getMentions(params: {
+  platform?: "x" | "linkedin" | "all";
+  days?: number;
+  page?: number;
+  page_size?: number;
+} = {}): Promise<MentionsFeed> {
+  const { platform = "all", days = 7, page = 1, page_size = 20 } = params;
+  const qs = new URLSearchParams({
+    days: String(days),
+    page: String(page),
+    page_size: String(page_size),
+  });
+  if (platform && platform !== "all") qs.set("platform", platform);
+  const raw = await apiFetch<Record<string, unknown>>(`/api/mentions?${qs.toString()}`);
+  return {
+    mentions: (raw.mentions ?? raw.posts ?? []) as Post[],
+    total: (raw.total as number) ?? 0,
+    page: (raw.page as number) ?? page,
+    page_size: (raw.page_size as number) ?? page_size,
+    by_platform: (raw.by_platform as { x: number; linkedin: number }) ?? { x: 0, linkedin: 0 },
+  };
 }
 
 export async function getPopularPosts(params: {

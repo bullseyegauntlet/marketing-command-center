@@ -264,6 +264,20 @@ def stats():
             }
             for r in cur.fetchall()
         ]
+        # Mention stats
+        mention_total = 0
+        mention_last_24h = 0
+        mention_by_platform: dict = {}
+        try:
+            cur.execute("SELECT COUNT(*) as total FROM posts WHERE is_mention = TRUE")
+            mention_total = cur.fetchone()['total']
+            cur.execute("SELECT COUNT(*) as cnt FROM posts WHERE is_mention = TRUE AND published_at >= NOW() - INTERVAL '24 hours'")
+            mention_last_24h = cur.fetchone()['cnt']
+            cur.execute("SELECT platform, COUNT(*) as cnt FROM posts WHERE is_mention = TRUE GROUP BY platform")
+            mention_by_platform = {r['platform']: r['cnt'] for r in cur.fetchall()}
+        except Exception:
+            pass
+
         # Popular posts stats
         popular_total = 0
         popular_last_24h = 0
@@ -282,6 +296,12 @@ def stats():
             'project_updates': project_count,
             'queries_run': query_count,
             'last_ingestion': last_ingestion,
+            'mentions': {
+                'total': mention_total,
+                'last_24h': mention_last_24h,
+                'x': mention_by_platform.get('x', 0),
+                'linkedin': mention_by_platform.get('linkedin', 0),
+            },
             'popular': {
                 'total': popular_total,
                 'last_24h': popular_last_24h,
@@ -542,6 +562,80 @@ def query_history_export(query_id: str):
             for res in results[:10]:
                 md += f"- **{res.get('author', 'unknown')}**: {res.get('content', '')[:200]}\n  [{res.get('source_url', '')}]\n\n"
         return {'markdown': md, 'query_id': query_id}
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ─── Mentions ──────────────────────────────────────────────────────────────
+
+@app.get('/api/mentions')
+def mentions(
+    platform: Optional[str] = Query(None, description="x | linkedin | all"),
+    days: int = Query(7, description="Look-back window in days"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        where_clauses = [
+            "p.is_mention = TRUE",
+            "p.published_at >= NOW() - INTERVAL '1 day' * %s",
+        ]
+        params: list = [days]
+
+        if platform and platform != 'all':
+            where_clauses.append("p.platform = %s")
+            params.append(platform)
+
+        where_sql = " AND ".join(where_clauses)
+        offset = (page - 1) * page_size
+
+        cur.execute(f"SELECT COUNT(*) as total FROM posts p WHERE {where_sql}", params)
+        total = cur.fetchone()['total']
+
+        cur.execute(f"""
+            SELECT p.platform, COUNT(*) as cnt
+            FROM posts p WHERE {where_sql}
+            GROUP BY p.platform
+        """, params)
+        by_platform = {r['platform']: r['cnt'] for r in cur.fetchall()}
+
+        cur.execute(f"""
+            SELECT id, platform, external_id, author, content, source_url,
+                   published_at, ingested_at, likes, retweets, replies, views, channel
+            FROM posts p
+            WHERE {where_sql}
+            ORDER BY published_at DESC
+            LIMIT %s OFFSET %s
+        """, params + [page_size, offset])
+
+        rows = []
+        for r in cur.fetchall():
+            row = dict(r)
+            if row.get('published_at'):
+                row['published_at'] = row['published_at'].isoformat()
+            if row.get('ingested_at'):
+                row['ingested_at'] = row['ingested_at'].isoformat()
+            if row.get('platform') == 'slack':
+                row['author'] = resolve_slack_author(row.get('author', ''))
+            for k, v in row.items():
+                if isinstance(v, Decimal):
+                    row[k] = float(v)
+            rows.append(row)
+
+        return {
+            'mentions': rows,
+            'posts': rows,  # alias for ResultCard compatibility
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'by_platform': {
+                'x': by_platform.get('x', 0),
+                'linkedin': by_platform.get('linkedin', 0),
+            },
+        }
     finally:
         cur.close()
         conn.close()

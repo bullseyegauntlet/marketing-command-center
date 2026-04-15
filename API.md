@@ -43,6 +43,12 @@ Marketing Command Center | FastAPI Backend
 | GET | `/api/projects` | Latest update per project |
 | GET | `/api/projects/{name}/history` | All updates for a project |
 
+### Mentions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/mentions` | Paginated feed of brand mentions (is_mention=true posts). Params: `platform` (x\|linkedin\|all), `days` (int, default 7), `page`, `page_size` |
+
 ### Popular Posts
 
 | Method | Path | Description |

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ResultCard } from "@/components/result-card";
 import { PopularFeed } from "@/components/popular-feed";
+import { MentionsFeed } from "@/components/mentions-feed";
 import {
   querySemanticWithSummary,
   getStats,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type ActiveTab = "search" | "popular";
+type ActiveTab = "search" | "mentions" | "popular";
 
 function SummaryBox({ summary }: { summary: string }) {
   return (
@@ -29,40 +30,44 @@ function SummaryBox({ summary }: { summary: string }) {
 function TabBar({
   activeTab,
   setActiveTab,
+  mentionsBadge,
   popularBadge,
 }: {
   activeTab: ActiveTab;
   setActiveTab: (t: ActiveTab) => void;
+  mentionsBadge: number;
   popularBadge: number;
 }) {
+  function tabClass(id: ActiveTab) {
+    return cn(
+      "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+      activeTab === id
+        ? "border-primary text-primary"
+        : "border-transparent text-muted-foreground hover:text-foreground"
+    );
+  }
+
+  function Badge({ count }: { count: number }) {
+    if (count <= 0) return null;
+    return (
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-white text-[10px] font-bold leading-none">
+        {count > 9 ? "9+" : count}
+      </span>
+    );
+  }
+
   return (
     <div className="flex items-center gap-1 border-b border-border mb-6">
-      <button
-        onClick={() => setActiveTab("search")}
-        className={cn(
-          "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-          activeTab === "search"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted-foreground hover:text-foreground"
-        )}
-      >
+      <button onClick={() => setActiveTab("search")} className={tabClass("search")}>
         Search
       </button>
-      <button
-        onClick={() => setActiveTab("popular")}
-        className={cn(
-          "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-          activeTab === "popular"
-            ? "border-primary text-primary"
-            : "border-transparent text-muted-foreground hover:text-foreground"
-        )}
-      >
+      <button onClick={() => setActiveTab("mentions")} className={tabClass("mentions")}>
+        @Mentions
+        <Badge count={mentionsBadge} />
+      </button>
+      <button onClick={() => setActiveTab("popular")} className={tabClass("popular")}>
         🔥 Popular
-        {popularBadge > 0 && (
-          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-none">
-            {popularBadge > 9 ? "9+" : popularBadge}
-          </span>
-        )}
+        <Badge count={popularBadge} />
       </button>
     </div>
   );
@@ -81,7 +86,7 @@ export default function QueryPage() {
     getStats().then(setStats).catch(() => null);
   }, []);
 
-  // Clear badge when switching to popular tab
+  const mentionsBadge = activeTab === "mentions" ? 0 : (stats?.mentions?.last_24h ?? 0);
   const popularBadge = activeTab === "popular" ? 0 : (stats?.popular?.last_24h ?? 0);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -116,8 +121,12 @@ export default function QueryPage() {
       <TabBar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        mentionsBadge={mentionsBadge}
         popularBadge={popularBadge}
       />
+
+      {/* ── Mentions tab ── */}
+      {activeTab === "mentions" && <MentionsFeed />}
 
       {/* ── Popular tab ── */}
       {activeTab === "popular" && <PopularFeed />}

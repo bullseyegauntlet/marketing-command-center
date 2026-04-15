@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-type Section = "overview" | "search" | "popular" | "history" | "ingestion" | "accounts";
+type Section = "overview" | "search" | "mentions" | "popular" | "history" | "ingestion" | "accounts";
 
 const sections: { id: Section; label: string; emoji: string }[] = [
   { id: "overview", label: "Overview", emoji: "🗺️" },
   { id: "search", label: "Search Tab", emoji: "🔍" },
   { id: "popular", label: "Popular Tab", emoji: "🔥" },
+  { id: "mentions", label: "@Mentions Tab", emoji: "📡" },
   { id: "history", label: "History Tab", emoji: "🕐" },
   { id: "ingestion", label: "Ingestion Pipelines", emoji: "⚙️" },
   { id: "accounts", label: "Platform Accounts", emoji: "🎯" },
@@ -128,6 +129,11 @@ export default function DocsPage() {
                       <td className="px-3 py-2.5 text-muted-foreground">Fetches new X tweets + Slack messages, embeds them, inserts into DB</td>
                     </tr>
                     <tr>
+                      <td className="px-3 py-2.5 font-medium">LinkedIn Mentions Ingestion</td>
+                      <td className="px-3 py-2.5 font-mono">0 8 * * * UTC</td>
+                      <td className="px-3 py-2.5 text-muted-foreground">Keyword search on LinkedIn, tags posts is_mention=true — via GitHub Actions</td>
+                    </tr>
+                    <tr>
                       <td className="px-3 py-2.5 font-medium">MCC Engagement Recheck</td>
                       <td className="px-3 py-2.5 font-mono">0 */4 * * * CDT</td>
                       <td className="px-3 py-2.5 text-muted-foreground">Re-fetches metrics for posts from last 72h, flags newly popular ones</td>
@@ -207,6 +213,49 @@ export default function DocsPage() {
               <DataRow label="Page" value="app/page.tsx (Search tab)" mono />
               <DataRow label="Components" value="ResultCard, SummaryBox, Skeleton loaders" />
               <DataRow label="State" value="Query text, loading, error, QueryResult (posts + summary + count)" />
+            </Section>
+          </div>
+        )}
+
+        {/* ── MENTIONS TAB ── */}
+        {active === "mentions" && (
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-2xl font-semibold text-foreground">@Mentions Tab</h1>
+              <p className="text-sm text-muted-foreground mt-1">Brand mention monitoring across X and LinkedIn</p>
+            </div>
+
+            <Section title="How it works">
+              <div className="space-y-3 text-sm text-foreground leading-relaxed">
+                <p>The @Mentions tab surfaces all posts tagged <code className="bg-secondary px-1 rounded text-xs">is_mention = TRUE</code> in the database — ingested via keyword search on X and LinkedIn. No manual searching needed.</p>
+                <p>X mentions are found via the search endpoint (<code className="bg-secondary px-1 rounded text-xs">GET /2/tweets/search/recent</code>) with the query <code className="bg-secondary px-1 rounded text-xs">"Gauntlet AI" OR @GauntletAI OR gauntletai -is:retweet lang:en</code>. LinkedIn mentions are found by keyword search using the unofficial Voyager API.</p>
+                <p>All mention posts are also searchable in the Search tab — the <code className="bg-secondary px-1 rounded text-xs">is_mention</code> flag is additive, not exclusive.</p>
+              </div>
+            </Section>
+
+            <Section title="Ingestion sources">
+              <DataRow label="X" value={<span>Search: <code className="bg-secondary px-1 rounded text-xs">"Gauntlet AI" OR @GauntletAI OR gauntletai -is:retweet lang:en</code> · runs daily</span>} />
+              <DataRow label="LinkedIn" value='Keywords: Gauntlet AI, gauntletai, Gauntlet AI program, GauntletAI · runs daily at 08:00 UTC' />
+            </Section>
+
+            <Section title="API endpoint">
+              <DataRow label="Route" value="GET /api/mentions" mono />
+              <DataRow label="Params" value="platform (x|linkedin|all), days (default 7), page, page_size" mono />
+              <DataRow label="Returns" value="{ mentions[], total, page, page_size, by_platform: {x, linkedin} }" mono />
+              <DataRow label="Stats" value="GET /api/stats → .mentions.total + .last_24h + .x + .linkedin" mono />
+            </Section>
+
+            <Section title="Database">
+              <DataRow label="Column" value={<span><code className="bg-secondary px-1 rounded text-xs">is_mention BOOLEAN DEFAULT FALSE</code> on the <Badge color="blue">posts</Badge> table</span>} />
+              <DataRow label="Index" value="posts_is_mention_idx ON (is_mention, published_at DESC)" mono />
+              <DataRow label="Set by" value="linkedin_mentions_ingestion.py at insert time" />
+            </Section>
+
+            <Section title="Frontend">
+              <DataRow label="Page" value="app/page.tsx (@Mentions tab)" mono />
+              <DataRow label="Component" value="components/mentions-feed.tsx" mono />
+              <DataRow label="Filters" value="Platform (All/X/LinkedIn) + time range (24h/7d/30d)" />
+              <DataRow label="Badge" value="Tab shows count of mentions from last 24h; clears when tab is visited" />
             </Section>
           </div>
         )}
@@ -366,6 +415,19 @@ export default function DocsPage() {
               <DataRow label="Schedule" value="Daily at 2:00 AM CDT" />
             </Section>
 
+            <Section title="LinkedIn — linkedin_mentions_ingestion.py">
+              <DataRow label="Source" value="Keyword search for brand mentions" />
+              <DataRow label="Keywords" value='Gauntlet AI, gauntletai, Gauntlet AI program, GauntletAI (env: LINKEDIN_MENTION_KEYWORDS)' />
+              <DataRow label="Auth" value="LinkedIn session cookies (Google OAuth account — no password). Cookies stored at ~/.openclaw/secrets/linkedin_cookies.json and expire ~every 2 weeks" />
+              <DataRow label="API" value="linkedin-api (unofficial Voyager API wrapper)" />
+              <DataRow label="Deduplication" value="ON CONFLICT (external_id) DO NOTHING — URN-based external_id" />
+              <DataRow label="Tags posts" value="is_mention = TRUE, platform = 'linkedin'" />
+              <DataRow label="Embeddings" value="Batches of 50 via text-embedding-3-small" />
+              <DataRow label="Popularity check" value="Checks POPULAR_THRESHOLD_LI_LIKES (500), POPULAR_THRESHOLD_LI_REPOSTS (100), POPULAR_THRESHOLD_LI_REPLIES (50)" />
+              <DataRow label="Schedule" value="Daily at 08:00 UTC via GitHub Actions (cron-ingestion.yml)" />
+              <DataRow label="Cookie refresh" value={<span>When expired: log into LinkedIn in Chrome browser profile, then run the cookie extraction command in the script header. Update <code className="bg-secondary px-1 rounded text-xs">LINKEDIN_COOKIES_JSON</code> GitHub secret too.</span>} />
+            </Section>
+
             <Section title="Engagement Recheck — engagement_recheck.py">
               <DataRow label="Purpose" value="Catch posts that went viral after initial ingestion — metrics grow over time" />
               <DataRow label="Window" value="Posts ingested in last 72h not yet in popular_posts (configurable via RECHECK_WINDOW_HOURS)" />
@@ -429,6 +491,15 @@ export default function DocsPage() {
               <DataRow label="Monitored channels" value="#ai-first-methodologies, #claude-maxxing, #industry-news" />
               <DataRow label="Alert channel" value={<span>#bullseye_comms — env var <code className="bg-secondary px-1 rounded text-xs">SLACK_ALERT_CHANNEL</code></span>} />
               <DataRow label="Channel IDs env var" value="SLACK_CHANNEL_IDS" mono />
+            </Section>
+
+            <Section title="LinkedIn">
+              <DataRow label="Account" value={<a href="https://linkedin.com/in/bullseye-undefined-290927403/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">bullseye-undefined-290927403</a>} />
+              <DataRow label="Email" value="bullseye.gauntlet@gmail.com (Google OAuth — no password)" />
+              <DataRow label="Auth" value="Session cookies — stored at ~/.openclaw/secrets/linkedin_cookies.json" />
+              <DataRow label="Cookie expiry" value="~2 weeks — refresh manually when expired (see ingestion script header for instructions)" />
+              <DataRow label="GitHub secret" value="LINKEDIN_COOKIES_JSON" mono />
+              <DataRow label="Keywords tracked" value="Gauntlet AI, gauntletai, Gauntlet AI program, GauntletAI" />
             </Section>
 
             <Section title="Google / Gmail">
