@@ -139,17 +139,20 @@ export default function DocsPage() {
             <Card title="How it works">
               <Row label="Detection" value="Posts are checked at ingestion and again every 4 hours. Any post that crosses a threshold is flagged permanently." />
               <Row label="Alerts" value="A Slack alert fires to #bullseye_comms the first time a post is flagged — one alert per post, ever." />
-              <Row label="Originals only" value="Retweets, quote tweets, and replies are excluded. Only original posts qualify." />
+              <Row label="Originals only" value="On X: retweets, quote tweets, and replies are excluded. Only original authored posts qualify." />
               <Row label="Exclusions" value="@jason is excluded from flagging." />
             </Card>
             <Card title="Thresholds">
-              <Row label="X views" value="> 50,000" />
+              <Row label="X views" value="> 1,000,000" />
               <Row label="X likes" value="> 300" />
               <Row label="X reposts" value="> 50" />
               <Row label="X replies" value="> 50" />
               <Row label="Slack thread replies" value="> 20" />
               <Row label="Reddit upvotes" value="> 100" />
               <Row label="Reddit comments" value="> 50" />
+              <Row label="LinkedIn likes" value="> 500" />
+              <Row label="LinkedIn reposts" value="> 100" />
+              <Row label="LinkedIn replies" value="> 50" />
             </Card>
             <Card title="Filters">
               <Row label="Platform" value="All / X / Slack / Reddit" />
