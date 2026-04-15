@@ -2,7 +2,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface Post {
   id: string;
-  platform: "x" | "slack";
+  platform: "x" | "slack" | "reddit" | "linkedin";
   external_id: string;
   author: string;
   content: string;
