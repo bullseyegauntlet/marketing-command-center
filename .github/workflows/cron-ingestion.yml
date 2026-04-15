@@ -18,6 +18,7 @@ on:
         options:
           - all
           - engagement_recheck
+          - reddit_mentions
           - linkedin_mentions
           - x_mentions
 
@@ -61,6 +62,44 @@ jobs:
           POPULAR_THRESHOLD_SLACK_REPLIES: ${{ secrets.POPULAR_THRESHOLD_SLACK_REPLIES }}
           RECHECK_WINDOW_HOURS:            '72'
         run: python ingestion/engagement_recheck.py
+
+  # ── Reddit Mentions (daily at 08:00 UTC) ────────────────────────────────────
+  reddit_mentions:
+    name: Reddit Mentions Ingestion
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && github.event.schedule == '0 8 * * *' ||
+      github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'reddit_mentions')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run Reddit mentions ingestion
+        working-directory: backend
+        env:
+          DATABASE_URL:                      ${{ secrets.DATABASE_URL }}
+          REDDIT_CLIENT_ID:                  ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET:              ${{ secrets.REDDIT_CLIENT_SECRET }}
+          REDDIT_USERNAME:                   'Bullseye_Gauntlet'
+          REDDIT_PASSWORD:                   ${{ secrets.REDDIT_PASSWORD }}
+          REDDIT_SEARCH_QUERIES:             ${{ secrets.REDDIT_SEARCH_QUERIES }}
+          OPENROUTER_API_KEY:                ${{ secrets.OPENROUTER_API_KEY }}
+          SLACK_BOT_TOKEN:                   ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_ALERT_CHANNEL:               ${{ secrets.SLACK_ALERT_CHANNEL }}
+          POPULAR_THRESHOLD_REDDIT_UPVOTES:  ${{ secrets.POPULAR_THRESHOLD_REDDIT_UPVOTES }}
+          POPULAR_THRESHOLD_REDDIT_COMMENTS: ${{ secrets.POPULAR_THRESHOLD_REDDIT_COMMENTS }}
+        run: python ingestion/reddit_ingestion.py
 
   # ── LinkedIn Mentions (daily at 08:00 UTC) ──────────────────────────────────
   linkedin_mentions:

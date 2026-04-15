@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Reddit Ingestion Pipeline
-Searches Reddit for posts and comments mentioning Gauntlet AI.
-Runs daily via cron. Tags posts with is_mention=TRUE.
+Reddit Mentions Ingestion Pipeline
+Searches Reddit for posts explicitly mentioning Gauntlet AI.
+Runs daily via cron. Tags all posts with is_mention=TRUE.
+
+Only uses Reddit's search API with brand keywords — does NOT scrape subreddits
+wholesale. Every post ingested must match a Gauntlet AI keyword.
 
 Auth:
   Works in unauthenticated mode (public API) or authenticated mode (OAuth script app).
@@ -21,7 +24,6 @@ Env vars:
   REDDIT_USERNAME           Bot username (default: Bullseye_Gauntlet)
   REDDIT_PASSWORD           Bot password
   REDDIT_SEARCH_QUERIES     Comma-separated search queries (default below)
-  REDDIT_SUBREDDITS         Comma-separated subreddits to also monitor (optional)
   DATABASE_URL
   OPENROUTER_API_KEY / OPENAI_API_KEY
   SLACK_BOT_TOKEN
@@ -61,9 +63,6 @@ EMBEDDING_MODEL     = 'text-embedding-3-small'
 SEARCH_QUERIES_RAW  = os.getenv('REDDIT_SEARCH_QUERIES',
     '"Gauntlet AI",gauntletai,"Gauntlet AI program","gauntletai.com"')
 SEARCH_QUERIES      = [q.strip() for q in SEARCH_QUERIES_RAW.split(',') if q.strip()]
-
-SUBREDDITS_RAW      = os.getenv('REDDIT_SUBREDDITS', 'gauntletai,MachineLearning,cscareerquestions,learnmachinelearning')
-SUBREDDITS          = [s.strip() for s in SUBREDDITS_RAW.split(',') if s.strip()]
 
 POPULAR_THRESHOLD_REDDIT_UPVOTES  = int(os.getenv('POPULAR_THRESHOLD_REDDIT_UPVOTES', 100))
 POPULAR_THRESHOLD_REDDIT_COMMENTS = int(os.getenv('POPULAR_THRESHOLD_REDDIT_COMMENTS', 50))
@@ -281,20 +280,6 @@ def search_reddit(query: str, since_ts: Optional[float] = None) -> list:
     return [normalize_post(p, query) for p in posts if normalize_post(p, query)]
 
 
-def fetch_subreddit_new(subreddit: str, since_ts: Optional[float] = None) -> list:
-    """Fetch new posts from a specific subreddit."""
-    params = {'limit': 100}
-    data = reddit_get(f'/r/{subreddit}/new', params)
-    if not data:
-        return []
-
-    posts = extract_posts_from_listing(data)
-
-    if since_ts:
-        posts = [p for p in posts if p.get('created_utc', 0) > since_ts]
-
-    return [p for p in [normalize_post(p) for p in posts] if p]
-
 
 def insert_posts(cur, conn, openai_client, posts: list, is_mention: bool = False):
     """Deduplicate, embed, and insert a list of normalized posts."""
@@ -382,36 +367,6 @@ def run():
         n = insert_posts(cur, conn, openai_client, mention_posts, is_mention=True)
         total_inserted += n
         log.info(f'Inserted {n} new mention posts')
-
-        # 2. Subreddit monitoring (r/gauntletai + related subs)
-        sub_posts = []
-        sub_seen: set = set()
-        for subreddit in SUBREDDITS:
-            log.info(f'Fetching new posts from r/{subreddit}')
-            posts = fetch_subreddit_new(subreddit, since_ts)
-            for p in posts:
-                if p['external_id'] not in sub_seen and p['external_id'] not in seen_ids:
-                    sub_seen.add(p['external_id'])
-                    sub_posts.append(p)
-                    ts = p['published_at'].timestamp()
-                    if not latest_ts or ts > latest_ts:
-                        latest_ts = ts
-            time.sleep(1)
-
-        log.info(f'Found {len(sub_posts)} subreddit posts')
-        # r/gauntletai posts are implicitly brand-relevant — tag as mention
-        def is_mention_sub(p):
-            return p.get('channel', '').lower() == 'gauntletai'
-        for p in sub_posts:
-            p['_is_mention'] = is_mention_sub(p)
-
-        n = insert_posts(cur, conn, openai_client,
-                         [p for p in sub_posts if p.get('_is_mention')], is_mention=True)
-        total_inserted += n
-        n2 = insert_posts(cur, conn, openai_client,
-                          [p for p in sub_posts if not p.get('_is_mention')], is_mention=False)
-        total_inserted += n2
-        log.info(f'Inserted {n + n2} new subreddit posts')
 
         # Update checkpoint
         if latest_ts:
