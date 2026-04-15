@@ -69,8 +69,8 @@ export default function DocsPage() {
               <p className="text-sm text-muted-foreground mt-1">A real-time intelligence dashboard for Gauntlet AI marketing & sales</p>
             </div>
             <Card title="What it does">
-              <Row label="Search" value="Semantic search across all ingested Slack and X content with AI-generated summaries" />
-              <Row label="@Mentions" value="Auto-ingested brand mentions from X and LinkedIn — no manual searching required" />
+              <Row label="Search" value="Semantic search across all ingested Slack, X, and Reddit content with AI-generated summaries" />
+              <Row label="@Mentions" value="Auto-ingested brand mentions from X, Reddit, and LinkedIn — no manual searching required" />
               <Row label="🔥 Popular" value="Automatically flags high-engagement original posts and alerts #bullseye_comms" />
 
             </Card>
@@ -88,7 +88,7 @@ export default function DocsPage() {
               <Row label="LinkedIn" value="Keyword mention search (Gauntlet AI, gauntletai, etc.)" />
             </Card>
             <Card title="Scheduled jobs">
-              <Row label="Daily at 2am CDT" value="Fetch new X tweets and Slack messages, generate embeddings, insert into DB" />
+              <Row label="Daily at 2am CDT" value="Fetch new X tweets, Slack messages, and Reddit posts — generate embeddings, insert into DB" />
               <Row label="Daily at 8am UTC" value="LinkedIn keyword search for brand mentions" />
               <Row label="Every 4 hours" value="Re-check engagement metrics on recent posts, flag newly popular content" />
             </Card>
@@ -100,7 +100,7 @@ export default function DocsPage() {
           <div className="space-y-5">
             <div>
               <h1 className="text-2xl font-semibold text-foreground">Search</h1>
-              <p className="text-sm text-muted-foreground mt-1">Ask anything about your Slack channels and X posts</p>
+              <p className="text-sm text-muted-foreground mt-1">Ask anything about your Slack channels, X posts, and Reddit threads</p>
             </div>
             <Card title="How it works">
               <Row label="Query" value="Natural language — ask questions, use platform names, reference time ranges" />
@@ -117,7 +117,7 @@ export default function DocsPage() {
           <div className="space-y-5">
             <div>
               <h1 className="text-2xl font-semibold text-foreground">@Mentions</h1>
-              <p className="text-sm text-muted-foreground mt-1">People talking about Gauntlet AI across X and LinkedIn</p>
+              <p className="text-sm text-muted-foreground mt-1">People talking about Gauntlet AI across X, Reddit, and LinkedIn</p>
             </div>
             <Card title="How it works">
               <Row label="X" value='Brand mention search runs daily — finds posts matching "Gauntlet AI", @GauntletAI, or gauntletai. Retweets excluded.' />
@@ -148,9 +148,11 @@ export default function DocsPage() {
               <Row label="X reposts" value="> 50" />
               <Row label="X replies" value="> 50" />
               <Row label="Slack thread replies" value="> 20" />
+              <Row label="Reddit upvotes" value="> 100" />
+              <Row label="Reddit comments" value="> 50" />
             </Card>
             <Card title="Filters">
-              <Row label="Platform" value="All / X / Slack" />
+              <Row label="Platform" value="All / X / Slack / Reddit" />
               <Row label="Time range" value="7 days / 30 days / All time" />
               <Row label="Sort" value="Most recently flagged first" />
             </Card>
