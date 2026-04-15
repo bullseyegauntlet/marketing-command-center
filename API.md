@@ -43,11 +43,17 @@ Marketing Command Center | FastAPI Backend
 | GET | `/api/projects` | Latest update per project |
 | GET | `/api/projects/{name}/history` | All updates for a project |
 
+### Popular Posts
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/popular` | Paginated feed of high-engagement posts. Params: `platform` (x\|slack\|all), `days` (int, default 30), `page`, `page_size` |
+
 ### Stats
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/stats` | Total posts, ingestion health, active project count |
+| GET | `/api/stats` | Total posts, ingestion health, active project count, popular post counts |
 
 ---
 

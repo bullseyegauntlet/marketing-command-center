@@ -30,6 +30,9 @@ EMBEDDING_BASE_URL = 'https://openrouter.ai/api/v1' if OPENROUTER_API_KEY else N
 EMBEDDING_MODEL = 'text-embedding-3-small'
 DEAD_LETTER_PATH = os.path.join(os.path.dirname(__file__), '../logs/dead_letter.json')
 
+# Popular post threshold
+POPULAR_THRESHOLD_SLACK_REPLIES = int(os.getenv('POPULAR_THRESHOLD_SLACK_REPLIES', 20))
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 log = logging.getLogger(__name__)
 
@@ -75,6 +78,46 @@ def get_embeddings(client: OpenAI, texts: list) -> list:
         return []
     response = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
     return [item.embedding for item in response.data]
+
+
+def send_popular_alert(channel_id: str, content_preview: str, reply_count: int, source_url: str):
+    """Send a Slack alert for a hot Slack thread."""
+    if not ALERT_CHANNEL:
+        return
+    channel_display = f'#{channel_id}' if not channel_id.startswith('#') else channel_id
+    message = (
+        f'🔥 *Hot Slack Thread Detected*\n\n'
+        f'*{channel_display}* thread is blowing up:\n\n'
+        f'> "{content_preview[:200]}"\n\n'
+        f'💬 *{reply_count} replies*\n'
+        f'📎 {source_url}\n\n'
+        f'_Triggered by: {reply_count} thread replies (threshold: {POPULAR_THRESHOLD_SLACK_REPLIES})_'
+    )
+    try:
+        requests.post('https://slack.com/api/chat.postMessage',
+            headers={'Authorization': f'Bearer {SLACK_TOKEN}'},
+            json={'channel': ALERT_CHANNEL, 'text': message}, timeout=10)
+    except Exception as e:
+        log.error(f'Failed to send popular alert: {e}')
+
+
+def check_slack_popular(cur, conn, post_id: str, reply_count: int,
+                        channel_id: str, content: str, source_url: str):
+    """Flag a Slack thread as popular if reply_count exceeds threshold."""
+    if reply_count < POPULAR_THRESHOLD_SLACK_REPLIES:
+        return
+    try:
+        cur.execute('''
+            INSERT INTO popular_posts (post_id, triggered_by, metric_value)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (post_id) DO NOTHING
+        ''', (post_id, 'slack_thread_replies', reply_count))
+        conn.commit()
+        log.info(f'Flagged Slack post {post_id} as popular ({reply_count} replies)')
+        send_popular_alert(channel_id, content, reply_count, source_url)
+    except Exception as e:
+        log.error(f'Failed to flag popular Slack post {post_id}: {e}')
+        conn.rollback()
 
 
 def send_alert(message: str):
@@ -167,6 +210,8 @@ def ingest_channel(cur, conn, openai_client: OpenAI, channel_id: str, oldest_ts:
         source_url = build_source_url(channel_id, ts)
         published_at = ts_to_datetime(ts)
         links = extract_links(content)
+        # reply_count is on parent messages from conversations.history
+        reply_count = msg.get('reply_count', 0)
 
         new_posts.append({
             'external_id': ts,
@@ -176,6 +221,7 @@ def ingest_channel(cur, conn, openai_client: OpenAI, channel_id: str, oldest_ts:
             'published_at': published_at,
             'channel': channel_id,
             'links': json.dumps(links),
+            '_reply_count': reply_count,
         })
 
     if not new_posts:
@@ -200,11 +246,19 @@ def ingest_channel(cur, conn, openai_client: OpenAI, channel_id: str, oldest_ts:
                         published_at, channel, links, embedding)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (external_id) DO NOTHING
+                    RETURNING id
                 ''', (
                     'slack', post['external_id'], post['author'], post['content'],
                     post['source_url'], post['published_at'], post['channel'],
                     post['links'], embedding
                 ))
+                row = cur.fetchone()
+                if row and post.get('_reply_count', 0) > 0:
+                    check_slack_popular(
+                        cur, conn, str(row['id']),
+                        post['_reply_count'], post['channel'],
+                        post['content'], post['source_url']
+                    )
             except Exception as e:
                 log.error(f'Insert failed for {post["external_id"]}: {e}')
                 log_dead_letter(post, str(e))

@@ -264,6 +264,17 @@ def stats():
             }
             for r in cur.fetchall()
         ]
+        # Popular posts stats
+        popular_total = 0
+        popular_last_24h = 0
+        try:
+            cur.execute("SELECT COUNT(*) as total FROM popular_posts")
+            popular_total = cur.fetchone()['total']
+            cur.execute("SELECT COUNT(*) as cnt FROM popular_posts WHERE flagged_at >= NOW() - INTERVAL '24 hours'")
+            popular_last_24h = cur.fetchone()['cnt']
+        except Exception:
+            pass  # table may not exist yet before migration runs
+
         return {
             'total_posts': total,
             'by_platform': by_platform,          # legacy key
@@ -271,6 +282,10 @@ def stats():
             'project_updates': project_count,
             'queries_run': query_count,
             'last_ingestion': last_ingestion,
+            'popular': {
+                'total': popular_total,
+                'last_24h': popular_last_24h,
+            },
         }
     finally:
         cur.close()
@@ -527,6 +542,89 @@ def query_history_export(query_id: str):
             for res in results[:10]:
                 md += f"- **{res.get('author', 'unknown')}**: {res.get('content', '')[:200]}\n  [{res.get('source_url', '')}]\n\n"
         return {'markdown': md, 'query_id': query_id}
+    finally:
+        cur.close()
+        conn.close()
+
+
+# ─── Popular Posts ─────────────────────────────────────────────────────────
+
+@app.get('/api/popular')
+def popular_posts(
+    platform: Optional[str] = Query(None, description="x | slack | all"),
+    days: int = Query(30, description="Look-back window in days (based on flagged_at)"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        where_clauses = ["pp.flagged_at >= NOW() - INTERVAL '1 day' * %s"]
+        params: list = [days]
+
+        if platform and platform != 'all':
+            where_clauses.append("p.platform = %s")
+            params.append(platform)
+
+        where_sql = " AND ".join(where_clauses)
+        offset = (page - 1) * page_size
+
+        # Total count
+        cur.execute(f"""
+            SELECT COUNT(*) as total
+            FROM popular_posts pp
+            JOIN posts p ON p.id = pp.post_id
+            WHERE {where_sql}
+        """, params)
+        total = cur.fetchone()['total']
+
+        # By-platform breakdown
+        cur.execute(f"""
+            SELECT p.platform, COUNT(*) as cnt
+            FROM popular_posts pp
+            JOIN posts p ON p.id = pp.post_id
+            WHERE {where_sql}
+            GROUP BY p.platform
+        """, params)
+        by_platform = {r['platform']: r['cnt'] for r in cur.fetchall()}
+
+        # Paginated results
+        cur.execute(f"""
+            SELECT
+                p.id, p.platform, p.external_id, p.author, p.content,
+                p.source_url, p.published_at, p.ingested_at,
+                p.likes, p.retweets, p.replies, p.views, p.channel,
+                pp.flagged_at, pp.triggered_by, pp.metric_value
+            FROM popular_posts pp
+            JOIN posts p ON p.id = pp.post_id
+            WHERE {where_sql}
+            ORDER BY pp.flagged_at DESC
+            LIMIT %s OFFSET %s
+        """, params + [page_size, offset])
+
+        rows = []
+        for r in cur.fetchall():
+            row = dict(r)
+            if row.get('published_at'):
+                row['published_at'] = row['published_at'].isoformat()
+            if row.get('ingested_at'):
+                row['ingested_at'] = row['ingested_at'].isoformat()
+            if row.get('flagged_at'):
+                row['flagged_at'] = row['flagged_at'].isoformat()
+            if row.get('platform') == 'slack':
+                row['author'] = resolve_slack_author(row.get('author', ''))
+            for k, v in row.items():
+                if isinstance(v, Decimal):
+                    row[k] = float(v)
+            rows.append(row)
+
+        return {
+            'posts': rows,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'by_platform': {'x': by_platform.get('x', 0), 'slack': by_platform.get('slack', 0)},
+        }
     finally:
         cur.close()
         conn.close()

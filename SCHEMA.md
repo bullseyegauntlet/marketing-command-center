@@ -26,6 +26,7 @@ Stores all ingested social content (X tweets + Slack messages).
 | likes | INT | X only; refreshed periodically |
 | retweets | INT | X only; refreshed periodically |
 | replies | INT | X only; refreshed periodically |
+| views | INT | X only; impression_count from public_metrics |
 | channel | VARCHAR | Slack channel name or X list name |
 | links | JSONB | Array of URLs extracted from post |
 | embedding | VECTOR(1536) | For semantic search via pgvector |
@@ -56,6 +57,20 @@ Tracks ingestion state per source for resumability.
 | status | ENUM('success', 'failed', 'running') | |
 | consecutive_failures | INT | Alert triggered at >= 2 |
 
+### `popular_posts`
+
+Tracks posts that have crossed high-engagement thresholds. One row per post (first threshold crossed wins via `UNIQUE(post_id)`). Never deleted — popular posts are persistent.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID | Primary key |
+| post_id | UUID | FK → posts(id) ON DELETE CASCADE |
+| flagged_at | TIMESTAMPTZ | When the post was flagged as popular |
+| triggered_by | TEXT | Which metric crossed first: `likes` \| `views` \| `reposts` \| `replies` \| `slack_thread_replies` |
+| metric_value | INTEGER | Value that crossed the threshold |
+| alerted | BOOLEAN | Whether a Slack alert has been sent |
+| alerted_at | TIMESTAMPTZ | When the alert was sent |
+
 ### `query_history`
 
 Stores every query and its full result snapshot.
@@ -84,6 +99,7 @@ Stores every query and its full result snapshot.
 | posts_platform_date | B-tree composite | (platform, published_at) | Fast platform + date filtering |
 | posts_channel | B-tree | channel | Fast channel/list filtering |
 | posts_external_id | Unique B-tree | external_id | Deduplication at ingestion |
+| idx_popular_posts_flagged | B-tree | flagged_at DESC | Popular posts feed (sorted by flagged time) |
 
 ---
 
@@ -115,4 +131,5 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- UUID generation
 | File | Description | Date |
 |------|-------------|------|
 | 001_initial_schema.sql | Created posts, project_updates, ingestion_checkpoints, query_history tables + all indexes + tsvector trigger | 2026-03-20 |
+| 002_popular_posts.sql | Added popular_posts table, idx_popular_posts_flagged index, views column on posts | 2026-04-15 |
 | 002_linkedin_mentions.sql | Added `linkedin` to platform_enum, `is_mention` column + index on posts, seeded `linkedin_mentions` checkpoint | 2026-04-15 |

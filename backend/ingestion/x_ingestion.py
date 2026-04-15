@@ -34,6 +34,12 @@ EMBEDDING_BASE_URL = 'https://openrouter.ai/api/v1' if OPENROUTER_API_KEY else N
 EMBEDDING_MODEL = 'text-embedding-3-small'
 DEAD_LETTER_PATH = os.path.join(os.path.dirname(__file__), '../logs/dead_letter_x.json')
 
+# Popular post thresholds (configurable via env)
+POPULAR_THRESHOLD_X_VIEWS    = int(os.getenv('POPULAR_THRESHOLD_X_VIEWS', 50000))
+POPULAR_THRESHOLD_X_LIKES    = int(os.getenv('POPULAR_THRESHOLD_X_LIKES', 300))
+POPULAR_THRESHOLD_X_REPOSTS  = int(os.getenv('POPULAR_THRESHOLD_X_REPOSTS', 50))
+POPULAR_THRESHOLD_X_REPLIES  = int(os.getenv('POPULAR_THRESHOLD_X_REPLIES', 50))
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 log = logging.getLogger(__name__)
 
@@ -83,6 +89,88 @@ def send_alert(message: str):
         json={'channel': ALERT_CHANNEL, 'text': message}, timeout=10)
 
 
+def send_popular_alert(post_data: dict, triggered_by: str, metric_value: int):
+    """Send a Slack alert for a newly flagged popular X post."""
+    if not ALERT_CHANNEL or not SLACK_TOKEN:
+        return
+    metrics = post_data.get('metrics', {})
+    views = metrics.get('impression_count', 0)
+    likes = metrics.get('like_count', 0)
+    reposts = metrics.get('retweet_count', 0)
+    replies = metrics.get('reply_count', 0)
+    content_preview = post_data.get('content', '')[:200]
+    author = post_data.get('author', 'unknown')
+    url = post_data.get('source_url', '')
+
+    metric_labels = {
+        'views': f'{metric_value:,} views',
+        'likes': f'{metric_value:,} likes',
+        'reposts': f'{metric_value:,} reposts',
+        'replies': f'{metric_value:,} replies',
+    }
+    trigger_label = metric_labels.get(triggered_by, f'{metric_value:,} {triggered_by}')
+
+    thresholds = {
+        'views': POPULAR_THRESHOLD_X_VIEWS,
+        'likes': POPULAR_THRESHOLD_X_LIKES,
+        'reposts': POPULAR_THRESHOLD_X_REPOSTS,
+        'replies': POPULAR_THRESHOLD_X_REPLIES,
+    }
+    threshold_label = thresholds.get(triggered_by, '?')
+
+    message = (
+        f'🔥 *Viral X Post Detected*\n\n'
+        f'*@{author}* posted something taking off:\n\n'
+        f'> "{content_preview}"\n\n'
+        f'👁 *{views:,} views*  ❤ *{likes:,} likes*  🔁 *{reposts:,} reposts*  💬 *{replies:,} replies*\n'
+        f'📎 {url}\n\n'
+        f'_Triggered by: {trigger_label} (threshold: {threshold_label:,})_'
+    )
+    try:
+        requests.post('https://slack.com/api/chat.postMessage',
+            headers={'Authorization': f'Bearer {SLACK_TOKEN}'},
+            json={'channel': ALERT_CHANNEL, 'text': message}, timeout=10)
+    except Exception as e:
+        log.error(f'Failed to send popular alert: {e}')
+
+
+def check_popular_thresholds(cur, conn, post_id: str, post_data: dict):
+    """Check if a post crosses any popularity threshold. Insert into popular_posts if so."""
+    metrics = post_data.get('metrics', {})
+    views   = metrics.get('impression_count', 0)
+    likes   = metrics.get('like_count', 0)
+    reposts = metrics.get('retweet_count', 0)
+    replies = metrics.get('reply_count', 0)
+
+    triggered_by  = None
+    metric_value  = 0
+
+    if views >= POPULAR_THRESHOLD_X_VIEWS:
+        triggered_by, metric_value = 'views', views
+    elif likes >= POPULAR_THRESHOLD_X_LIKES:
+        triggered_by, metric_value = 'likes', likes
+    elif reposts >= POPULAR_THRESHOLD_X_REPOSTS:
+        triggered_by, metric_value = 'reposts', reposts
+    elif replies >= POPULAR_THRESHOLD_X_REPLIES:
+        triggered_by, metric_value = 'replies', replies
+
+    if not triggered_by:
+        return
+
+    try:
+        cur.execute('''
+            INSERT INTO popular_posts (post_id, triggered_by, metric_value)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (post_id) DO NOTHING
+        ''', (post_id, triggered_by, metric_value))
+        conn.commit()
+        log.info(f'Flagged post {post_id} as popular ({triggered_by}: {metric_value})')
+        send_popular_alert(post_data, triggered_by, metric_value)
+    except Exception as e:
+        log.error(f'Failed to flag popular post {post_id}: {e}')
+        conn.rollback()
+
+
 def log_dead_letter(tweet: dict, error: str):
     os.makedirs(os.path.dirname(DEAD_LETTER_PATH), exist_ok=True)
     entry = {'timestamp': datetime.utcnow().isoformat(), 'error': error, 'tweet': tweet}
@@ -103,6 +191,7 @@ def fetch_list_tweets(since_id: Optional[str] = None) -> tuple[list, dict]:
         'tweet.fields': 'created_at,public_metrics,entities,author_id',
         'expansions': 'author_id',
         'user.fields': 'username',
+        # public_metrics includes impression_count (views) since 2023 API update
     }
 
     all_tweets = []
@@ -200,7 +289,10 @@ def run():
                 'likes': metrics.get('like_count', 0),
                 'retweets': metrics.get('retweet_count', 0),
                 'replies': metrics.get('reply_count', 0),
+                'views': metrics.get('impression_count', 0),
                 'links': json.dumps(links),
+                # Keep raw metrics for popular threshold check
+                '_metrics': metrics,
             })
 
         if not new_tweets:
@@ -221,15 +313,25 @@ def run():
                     try:
                         cur.execute('''
                             INSERT INTO posts (platform, external_id, author, content, source_url,
-                                published_at, likes, retweets, replies, channel, links, embedding)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                published_at, likes, retweets, replies, views, channel, links, embedding)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                             ON CONFLICT (external_id) DO NOTHING
+                            RETURNING id
                         ''', (
                             'x', post['external_id'], post['author'], post['content'],
                             post['source_url'], post['published_at'],
-                            post['likes'], post['retweets'], post['replies'],
+                            post['likes'], post['retweets'], post['replies'], post['views'],
                             'gauntlet_graduates', post['links'], embedding
                         ))
+                        row = cur.fetchone()
+                        if row:
+                            # New post inserted — check popularity thresholds
+                            check_popular_thresholds(cur, conn, str(row['id']), {
+                                'author': post['author'],
+                                'content': post['content'],
+                                'source_url': post['source_url'],
+                                'metrics': post['_metrics'],
+                            })
                     except Exception as e:
                         log.error(f'Insert failed for {post["external_id"]}: {e}')
                         log_dead_letter(post, str(e))

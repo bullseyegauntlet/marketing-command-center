@@ -53,6 +53,25 @@ export interface Stats {
     status: string;
   }[];
   active_projects?: number;
+  popular?: {
+    total: number;
+    last_24h: number;
+  };
+}
+
+export interface PopularPost extends Post {
+  views?: number;
+  flagged_at: string;
+  triggered_by: string;
+  metric_value: number;
+}
+
+export interface PopularFeed {
+  posts: PopularPost[];
+  total: number;
+  page: number;
+  page_size: number;
+  by_platform: { x: number; slack: number };
 }
 
 export interface PaginatedHistory {
@@ -152,6 +171,22 @@ export async function exportHistoryMarkdown(id: string): Promise<string> {
   const res = await fetch(`${API_URL}/api/query/history/${id}/export`);
   if (!res.ok) throw new Error(`Export failed: ${res.status}`);
   return res.text();
+}
+
+export async function getPopularPosts(params: {
+  platform?: "x" | "slack" | "all";
+  days?: number;
+  page?: number;
+  page_size?: number;
+} = {}): Promise<PopularFeed> {
+  const { platform = "all", days = 30, page = 1, page_size = 20 } = params;
+  const qs = new URLSearchParams({
+    days: String(days),
+    page: String(page),
+    page_size: String(page_size),
+  });
+  if (platform && platform !== "all") qs.set("platform", platform);
+  return apiFetch<PopularFeed>(`/api/popular?${qs.toString()}`);
 }
 
 export function formatRelativeTime(dateStr: string): string {
