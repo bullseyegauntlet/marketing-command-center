@@ -1,0 +1,104 @@
+name: Ingestion Crons
+
+on:
+  schedule:
+    # Engagement re-check — every 4 hours (matches PRD cadence for viral detection)
+    - cron: '0 */4 * * *'
+    # LinkedIn mentions — daily at 08:00 UTC (safe cadence for unofficial API)
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run manually'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - engagement_recheck
+          - linkedin_mentions
+
+jobs:
+  # ── Engagement Re-check (every 4h) ─────────────────────────────────────────
+  engagement_recheck:
+    name: Engagement Re-check
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && github.event.schedule == '0 */4 * * *' ||
+      github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'engagement_recheck')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run engagement recheck
+        working-directory: backend
+        env:
+          DATABASE_URL:                    ${{ secrets.DATABASE_URL }}
+          X_API_KEY:                       ${{ secrets.X_API_KEY }}
+          X_API_SECRET:                    ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN:                  ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET:           ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          SLACK_BOT_TOKEN:                 ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_ALERT_CHANNEL:             ${{ secrets.SLACK_ALERT_CHANNEL }}
+          POPULAR_THRESHOLD_X_VIEWS:       ${{ secrets.POPULAR_THRESHOLD_X_VIEWS }}
+          POPULAR_THRESHOLD_X_LIKES:       ${{ secrets.POPULAR_THRESHOLD_X_LIKES }}
+          POPULAR_THRESHOLD_X_REPOSTS:     ${{ secrets.POPULAR_THRESHOLD_X_REPOSTS }}
+          POPULAR_THRESHOLD_X_REPLIES:     ${{ secrets.POPULAR_THRESHOLD_X_REPLIES }}
+          POPULAR_THRESHOLD_SLACK_REPLIES: ${{ secrets.POPULAR_THRESHOLD_SLACK_REPLIES }}
+          RECHECK_WINDOW_HOURS:            '72'
+        run: python ingestion/engagement_recheck.py
+
+  # ── LinkedIn Mentions (daily at 08:00 UTC) ──────────────────────────────────
+  linkedin_mentions:
+    name: LinkedIn Mentions Ingestion
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' && github.event.schedule == '0 8 * * *' ||
+      github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'linkedin_mentions')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Write LinkedIn cookies
+        env:
+          LINKEDIN_COOKIES_JSON: ${{ secrets.LINKEDIN_COOKIES_JSON }}
+        run: |
+          mkdir -p ~/.openclaw/secrets
+          echo "$LINKEDIN_COOKIES_JSON" > ~/.openclaw/secrets/linkedin_cookies.json
+
+      - name: Run LinkedIn mentions ingestion
+        working-directory: backend
+        env:
+          DATABASE_URL:                   ${{ secrets.DATABASE_URL }}
+          LINKEDIN_EMAIL:                 ${{ secrets.LINKEDIN_EMAIL }}
+          LINKEDIN_COOKIES_PATH:          '/home/runner/.openclaw/secrets/linkedin_cookies.json'
+          LINKEDIN_MENTION_KEYWORDS:      ${{ secrets.LINKEDIN_MENTION_KEYWORDS }}
+          OPENROUTER_API_KEY:             ${{ secrets.OPENROUTER_API_KEY }}
+          SLACK_BOT_TOKEN:                ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_ALERT_CHANNEL:            ${{ secrets.SLACK_ALERT_CHANNEL }}
+          POPULAR_THRESHOLD_LI_LIKES:     ${{ secrets.POPULAR_THRESHOLD_LI_LIKES }}
+          POPULAR_THRESHOLD_LI_REPOSTS:   ${{ secrets.POPULAR_THRESHOLD_LI_REPOSTS }}
+          POPULAR_THRESHOLD_LI_REPLIES:   ${{ secrets.POPULAR_THRESHOLD_LI_REPLIES }}
+        run: python ingestion/linkedin_mentions_ingestion.py

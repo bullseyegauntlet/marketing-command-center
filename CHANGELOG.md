@@ -116,10 +116,22 @@ Marketing Command Center | OpenClaw (Bullseye)
 
 **`requirements.txt`** updated: added `linkedin-api>=2.3.1`
 
-**Pending (not yet done):**
-- Run migration 002 against Railway production DB
-- Set `LINKEDIN_EMAIL`, `LINKEDIN_PASSWORD`, `LINKEDIN_MENTION_KEYWORDS` in Railway env vars
-- Create dedicated bot LinkedIn account (do NOT use a personal account)
-- Add GitHub Actions cron job (recommended: daily, e.g. `0 8 * * *`)
+**2026-04-15 — LinkedIn bot account created + full pipeline wired**
+- Bot account: `bullseye.gauntlet@gmail.com` via Google OAuth
+- Profile: `linkedin.com/in/bullseye-undefined-290927403/`
+- Session cookies saved to `~/.openclaw/secrets/linkedin_cookies.json` + GitHub Actions secret `LINKEDIN_COOKIES_JSON`
+- Migration `003_linkedin_mentions.sql` renumbered (was 002, collided with popular_posts migration) and run on Railway ✅
+- `linkedin_mentions_ingestion.py` updated to:
+  - Match popular posts pattern from `x_ingestion.py` — calls `check_popular_thresholds()` on each new insert
+  - Fire `🔥 Viral LinkedIn Post Detected` Slack alert to `#bullseye_comms` when thresholds crossed
+  - Popularity thresholds: `POPULAR_THRESHOLD_LI_LIKES=500`, `POPULAR_THRESHOLD_LI_REPOSTS=100`, `POPULAR_THRESHOLD_LI_REPLIES=50`
+- `cron-ingestion.yml` GitHub Actions workflow created:
+  - `engagement_recheck.py` — every 4 hours (matches PRD cadence)
+  - `linkedin_mentions_ingestion.py` — daily at 08:00 UTC
+  - Manual `workflow_dispatch` trigger for both jobs
+- GitHub secrets set: `LINKEDIN_COOKIES_JSON`, `LINKEDIN_EMAIL`, `LINKEDIN_MENTION_KEYWORDS`
+
+**Pending:**
 - Build `GET /api/mentions` backend endpoint (Phase 2 of @Mentions tab PRD)
-- Build frontend @Mentions tab (Phase 2 of @Mentions tab PRD)
+- Build frontend @Mentions tab + Popular Posts tab (PRD phases 2-3)
+- Cookie refresh reminder: LinkedIn session cookies expire ~every 2 weeks — refresh manually when needed

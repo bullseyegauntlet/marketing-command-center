@@ -132,4 +132,5 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- UUID generation
 |------|-------------|------|
 | 001_initial_schema.sql | Created posts, project_updates, ingestion_checkpoints, query_history tables + all indexes + tsvector trigger | 2026-03-20 |
 | 002_popular_posts.sql | Added popular_posts table, idx_popular_posts_flagged index, views column on posts | 2026-04-15 |
-| 002_linkedin_mentions.sql | Added `linkedin` to platform_enum, `is_mention` column + index on posts, seeded `linkedin_mentions` checkpoint | 2026-04-15 |
+| 002_popular_posts.sql | Created `popular_posts` table, added `views` column to posts | 2026-04-14 |
+| 003_linkedin_mentions.sql | Added `linkedin` to platform_enum, `is_mention` column + index on posts, seeded `linkedin_mentions` checkpoint | 2026-04-15 |
