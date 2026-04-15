@@ -174,7 +174,7 @@ def recheck_x_posts(cur, conn, posts: list):
         batch_ids = tweet_ids[i:i+BATCH]
         data = x_get('https://api.twitter.com/2/tweets', {
             'ids': ','.join(batch_ids),
-            'tweet.fields': 'public_metrics',
+            'tweet.fields': 'public_metrics,referenced_tweets',
         })
         if 'error' in data or not data.get('data'):
             log.warning(f'X metrics fetch failed or empty for batch {i//BATCH + 1}')
@@ -184,6 +184,12 @@ def recheck_x_posts(cur, conn, posts: list):
             tweet_id = tweet['id']
             post = id_map.get(tweet_id)
             if not post:
+                continue
+
+            # Skip retweets, quotes, and replies — only flag original posts
+            referenced = tweet.get('referenced_tweets', [])
+            ref_types = {r.get('type') for r in referenced} if referenced else set()
+            if ref_types.intersection({'retweeted', 'quoted', 'replied_to'}):
                 continue
 
             metrics = tweet.get('public_metrics', {})

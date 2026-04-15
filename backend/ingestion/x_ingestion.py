@@ -188,7 +188,7 @@ def fetch_list_tweets(since_id: Optional[str] = None) -> tuple[list, dict]:
     base_url = f'https://api.twitter.com/2/lists/{X_LIST_ID}/tweets'
     params = {
         'max_results': 100,
-        'tweet.fields': 'created_at,public_metrics,entities,author_id',
+        'tweet.fields': 'created_at,public_metrics,entities,author_id,referenced_tweets',
         'expansions': 'author_id',
         'user.fields': 'username',
         # public_metrics includes impression_count (views) since 2023 API update
@@ -280,6 +280,11 @@ def run():
                 if expanded:
                     links.append(expanded)
 
+            # Determine if this is an original post (not a retweet/quote/reply)
+            referenced = tweet.get('referenced_tweets', [])
+            ref_types = {r.get('type') for r in referenced} if referenced else set()
+            is_original = not ref_types.intersection({'retweeted', 'quoted', 'replied_to'})
+
             new_tweets.append({
                 'external_id': tweet_id,
                 'author': username,
@@ -291,8 +296,8 @@ def run():
                 'replies': metrics.get('reply_count', 0),
                 'views': metrics.get('impression_count', 0),
                 'links': json.dumps(links),
-                # Keep raw metrics for popular threshold check
                 '_metrics': metrics,
+                '_is_original': is_original,
             })
 
         if not new_tweets:
@@ -324,8 +329,8 @@ def run():
                             'gauntlet_graduates', post['links'], embedding
                         ))
                         row = cur.fetchone()
-                        if row:
-                            # New post inserted — check popularity thresholds
+                        if row and post.get('_is_original'):
+                            # Only check popularity for original posts (not retweets/quotes/replies)
                             check_popular_thresholds(cur, conn, str(row['id']), {
                                 'author': post['author'],
                                 'content': post['content'],
