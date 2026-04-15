@@ -171,6 +171,30 @@ def check_popular_thresholds(cur, conn, post_id: str, post: dict):
 
 # ─── Post Parsing ──────────────────────────────────────────────────────────────
 
+def _parse_li_timestamp(obj: dict) -> Optional[datetime]:
+    """Extract a datetime from a LinkedIn API object — tries all known timestamp fields."""
+    if not isinstance(obj, dict):
+        return None
+    for key in ('createdAt', 'publishedAt', 'created', 'published', 'postedAt',
+                'firstPublishedAt', 'lastModifiedAt'):
+        val = obj.get(key)
+        if val and isinstance(val, (int, float)):
+            # ms epoch if > year-2001 in seconds
+            divisor = 1000 if val > 1_000_000_000_000 else 1
+            try:
+                return datetime.utcfromtimestamp(val / divisor)
+            except Exception:
+                continue
+    # Try one level of nesting (header, actor, content)
+    for nested_key in ('header', 'actor', 'content'):
+        nested = obj.get(nested_key)
+        if isinstance(nested, dict):
+            result = _parse_li_timestamp(nested)
+            if result:
+                return result
+    return None
+
+
 def parse_company_update(raw: dict, company_name: str) -> Optional[dict]:
     """
     Parse a post from get_company_updates().
@@ -206,8 +230,8 @@ def parse_company_update(raw: dict, company_name: str) -> Optional[dict]:
     # Permalink from raw
     source_url = raw.get('permalink', f'https://www.linkedin.com/feed/update/{urn}/')
 
-    # Timestamp — not always present; fall back to now
-    published_at = datetime.utcnow()
+    # Timestamp — try multiple fields, fall back to ingestion time
+    published_at = _parse_li_timestamp(raw) or _parse_li_timestamp(val) or datetime.utcnow()
 
     return {
         'external_id': f'li_{activity_id}',
@@ -260,12 +284,14 @@ def parse_profile_post(raw: dict) -> Optional[dict]:
 
     source_url = raw.get('permalink', f'https://www.linkedin.com/feed/update/{urn}/')
 
+    published_at = _parse_li_timestamp(raw) or _parse_li_timestamp(val) or datetime.utcnow()
+
     return {
         'external_id': f'li_{activity_id}',
         'author': author,
         'content': content,
         'source_url': source_url,
-        'published_at': datetime.utcnow(),
+        'published_at': published_at,
         'likes': likes,
         'retweets': reposts,
         'replies': replies,

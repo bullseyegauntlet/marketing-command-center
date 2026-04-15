@@ -227,7 +227,8 @@ export async function getPopularPosts(params: {
   return apiFetch<PopularFeed>(`/api/popular?${qs.toString()}`);
 }
 
-export function formatRelativeTime(dateStr: string): string {
+export function formatRelativeTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "unknown date";
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
