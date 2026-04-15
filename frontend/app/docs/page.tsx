@@ -193,18 +193,18 @@ export default function DocsPage() {
               <p className="text-sm text-muted-foreground mt-1">Bullseye's accounts across each platform</p>
             </div>
             <Card title="X (Twitter)">
-              <Row label="Account" value="@bullseye_g4" />
-              <Row label="Also tracking" value="@gauntletai" />
+              <Row label="Account" value={<a href="https://x.com/bullseye_g4" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@bullseye_g4</a>} />
+              <Row label="Also tracking" value={<a href="https://x.com/gauntletai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@gauntletai</a>} />
             </Card>
             <Card title="Slack">
               <Row label="Bot name" value="Bullseye" />
               <Row label="Alert channel" value="#bullseye_comms" />
             </Card>
             <Card title="LinkedIn">
-              <Row label="Account" value="Bullseye (bullseye.gauntlet@gmail.com)" />
+              <Row label="Account" value={<a href="https://linkedin.com/in/bullseye-undefined-290927403/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Bullseye</a>} />
             </Card>
             <Card title="Google / Gmail">
-              <Row label="Account" value="bullseye.gauntlet@gmail.com" />
+              <Row label="Account" value={<a href="mailto:bullseye.gauntlet@gmail.com" className="text-primary hover:underline">bullseye.gauntlet@gmail.com</a>} />
             </Card>
           </div>
         )}
