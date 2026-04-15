@@ -189,7 +189,7 @@ export async function exportHistoryMarkdown(id: string): Promise<string> {
 }
 
 export async function getMentions(params: {
-  platform?: "x" | "linkedin" | "all";
+  platform?: "x" | "linkedin" | "reddit" | "all";
   days?: number;
   page?: number;
   page_size?: number;
