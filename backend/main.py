@@ -97,8 +97,9 @@ def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
         return query.strip(), date_from, date_to
 
     # Relative time expressions — all stored as "NOW() - INTERVAL '...'" strings
-    # "today" / "this week" / "this month"
+    # "today" / "this week" / "this month" / "yesterday"
     for pattern, interval in [
+        (r'\byesterday\b', "NOW() - INTERVAL '2 days'"),
         (r'\btoday\b', "NOW() - INTERVAL '1 day'"),
         (r'\bthis\s+week\b', "NOW() - INTERVAL '7 days'"),
         (r'\bthis\s+month\b', "NOW() - INTERVAL '30 days'"),
@@ -110,15 +111,31 @@ def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
             query = re.sub(pattern, '', query, flags=re.IGNORECASE).strip()
             return query.strip(), date_from, None
 
-    # "last N days"
-    m = re.search(r'\blast\s+(\d+)\s+days?\b', q)
+    # "last N weeks" / "past N weeks"
+    m = re.search(r'\b(?:last|past)\s+(\d+)\s+weeks?\b', q)
+    if m:
+        weeks = int(m.group(1))
+        date_from = f"NOW() - INTERVAL '{weeks * 7} days'"
+        query = re.sub(r'\b(?:last|past)\s+\d+\s+weeks?\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    # "last N months" / "past N months"
+    m = re.search(r'\b(?:last|past)\s+(\d+)\s+months?\b', q)
+    if m:
+        months = int(m.group(1))
+        date_from = f"NOW() - INTERVAL '{months * 30} days'"
+        query = re.sub(r'\b(?:last|past)\s+\d+\s+months?\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    # "last N days" / "past N days"
+    m = re.search(r'\b(?:last|past)\s+(\d+)\s+days?\b', q)
     if m:
         days = int(m.group(1))
         date_from = f"NOW() - INTERVAL '{days} days'"
-        query = re.sub(r'\blast\s+\d+\s+days?\b', '', query, flags=re.IGNORECASE).strip()
+        query = re.sub(r'\b(?:last|past)\s+\d+\s+days?\b', '', query, flags=re.IGNORECASE).strip()
         return query.strip(), date_from, None
 
-    # "last week" / "past week" / "this past week"
+    # "last week" / "past week"
     m = re.search(r'\b(?:last|past)\s+week\b', q)
     if m:
         date_from = "NOW() - INTERVAL '7 days'"
@@ -130,6 +147,29 @@ def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
     if m:
         date_from = "NOW() - INTERVAL '30 days'"
         query = re.sub(r'\b(?:last|past)\s+month\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    # "since [month]" — relative month, current year assumed (or last year if month is in future)
+    m = re.search(r'\bsince\s+(' + '|'.join(MONTHS.keys()) + r')\b', q)
+    if m:
+        import calendar as _cal
+        from datetime import date as _date
+        month_name = m.group(1)
+        month_num = MONTHS[month_name]
+        today = _date.today()
+        # If the named month is in the future this year, use last year
+        year = today.year if month_num <= today.month else today.year - 1
+        date_from = f"{year}-{month_num:02d}-01"
+        query = re.sub(r'\bsince\s+(' + '|'.join(MONTHS.keys()) + r')\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    # "since [month] [year]"
+    m = re.search(r'\bsince\s+(' + '|'.join(MONTHS.keys()) + r')\s+(\d{4})\b', q)
+    if m:
+        month_num = MONTHS[m.group(1)]
+        year = int(m.group(2))
+        date_from = f"{year}-{month_num:02d}-01"
+        query = re.sub(r'\bsince\s+(' + '|'.join(MONTHS.keys()) + r')\s+\d{4}\b', '', query, flags=re.IGNORECASE).strip()
         return query.strip(), date_from, None
 
     # "recently" / "recent" — treat as last 14 days
