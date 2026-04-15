@@ -7,10 +7,13 @@ import { PopularFeed } from "@/components/popular-feed";
 import { MentionsFeed } from "@/components/mentions-feed";
 import {
   querySemanticWithSummary,
+  getHistory,
   getStats,
+  formatRelativeTime,
   type QueryResult,
   type Post,
   type Stats,
+  type HistoryEntry,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +26,43 @@ function SummaryBox({ summary }: { summary: string }) {
         <span className="text-xs font-semibold text-primary uppercase tracking-wide">AI Summary</span>
       </div>
       <p className="text-sm text-foreground leading-relaxed">{summary}</p>
+    </div>
+  );
+}
+
+function RecentHistory({ onSelect }: { onSelect: (q: string) => void }) {
+  const [items, setItems] = useState<HistoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getHistory(1, 5)
+      .then((d) => setItems(d.items))
+      .catch(() => null)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return null;
+  if (!items.length) return null;
+
+  return (
+    <div className="mt-6">
+      <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Recent searches</p>
+      <div className="space-y-1">
+        {items.map((entry) => (
+          <button
+            key={entry.id}
+            onClick={() => onSelect(entry.query_text)}
+            className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-secondary text-left transition-colors group"
+          >
+            <span className="text-sm text-foreground truncate group-hover:text-primary transition-colors">
+              {entry.query_text}
+            </span>
+            <span className="text-xs text-muted-foreground shrink-0">
+              {formatRelativeTime(entry.created_at)}
+            </span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -47,7 +87,7 @@ function TabBar({
     );
   }
 
-  function Badge({ count }: { count: number }) {
+  function BadgeDot({ count }: { count: number }) {
     if (count <= 0) return null;
     return (
       <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-white text-[10px] font-bold leading-none">
@@ -63,11 +103,11 @@ function TabBar({
       </button>
       <button onClick={() => setActiveTab("mentions")} className={tabClass("mentions")}>
         @Mentions
-        <Badge count={mentionsBadge} />
+        <BadgeDot count={mentionsBadge} />
       </button>
       <button onClick={() => setActiveTab("popular")} className={tabClass("popular")}>
         🔥 Popular
-        <Badge count={popularBadge} />
+        <BadgeDot count={popularBadge} />
       </button>
     </div>
   );
@@ -81,7 +121,6 @@ export default function QueryPage() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
 
-  // Load stats for popular badge count
   useEffect(() => {
     getStats().then(setStats).catch(() => null);
   }, []);
@@ -92,11 +131,9 @@ export default function QueryPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim()) return;
-
     setLoading(true);
     setError(null);
     setResult(null);
-
     try {
       const res = await querySemanticWithSummary(query.trim());
       setResult(res);
@@ -112,6 +149,18 @@ export default function QueryPage() {
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
     }
+  }
+
+  function handleHistorySelect(q: string) {
+    setQuery(q);
+    setResult(null);
+    setError(null);
+    // Auto-run the selected query
+    setLoading(true);
+    querySemanticWithSummary(q)
+      .then(setResult)
+      .catch((err) => setError(err instanceof Error ? err.message : "Query failed"))
+      .finally(() => setLoading(false));
   }
 
   const hasResults = result !== null;
@@ -134,7 +183,6 @@ export default function QueryPage() {
       {/* ── Search tab ── */}
       {activeTab === "search" && (
         <div className="space-y-8">
-          {/* Search area */}
           <div className={hasResults ? "mb-2" : "pt-10 pb-4"}>
             {!hasResults && (
               <div className="text-center mb-8">
@@ -183,16 +231,19 @@ export default function QueryPage() {
                 </button>
               </div>
             </form>
+
+            {/* Recent history shown only when no active result */}
+            {!hasResults && !loading && (
+              <RecentHistory onSelect={handleHistorySelect} />
+            )}
           </div>
 
-          {/* Error */}
           {error && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          {/* Results area */}
           {(loading || hasResults) && (
             <div>
               {loading && (
@@ -206,13 +257,21 @@ export default function QueryPage() {
               {!loading && result?.summary && <SummaryBox summary={result.summary} />}
 
               {!loading && result && (
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">{result.count ?? 0}</span> results
-                  </span>
-                  {result.latency_ms && (
-                    <span className="text-xs text-muted-foreground">({result.latency_ms}ms)</span>
-                  )}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">{result.count ?? 0}</span> results
+                    </span>
+                    {result.latency_ms && (
+                      <span className="text-xs text-muted-foreground">({result.latency_ms}ms)</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { setResult(null); setQuery(""); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    ← New search
+                  </button>
                 </div>
               )}
 
@@ -244,9 +303,9 @@ export default function QueryPage() {
           )}
 
           {!loading && !hasResults && !error && (
-            <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-              <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center">
-                <svg className="w-7 h-7 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center">
+                <svg className="w-6 h-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                 </svg>
               </div>

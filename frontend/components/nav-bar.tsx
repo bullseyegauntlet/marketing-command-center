@@ -6,8 +6,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { href: "/", label: "Search" },
-  { href: "/history", label: "History" },
+  { href: "/", label: "Explore" },
   { href: "/docs", label: "Docs" },
 ];
 
