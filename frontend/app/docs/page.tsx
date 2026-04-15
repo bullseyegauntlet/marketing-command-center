@@ -206,6 +206,9 @@ export default function DocsPage() {
             <Card title="Google / Gmail">
               <Row label="Account" value={<a href="mailto:bullseye.gauntlet@gmail.com" className="text-primary hover:underline">bullseye.gauntlet@gmail.com</a>} />
             </Card>
+            <Card title="GitHub">
+              <Row label="Account" value={<a href="https://github.com/bullseyegauntlet" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">bullseyegauntlet</a>} />
+            </Card>
           </div>
         )}
 
