@@ -14,7 +14,7 @@ export function MentionsFeed() {
   const [timeRange, setTimeRange] = useState<TimeRange>("7");
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
-  const [byPlatform, setByPlatform] = useState({ x: 0, linkedin: 0 });
+  const [byPlatform, setByPlatform] = useState<{ x: number; linkedin: number; reddit?: number }>({ x: 0, linkedin: 0 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
