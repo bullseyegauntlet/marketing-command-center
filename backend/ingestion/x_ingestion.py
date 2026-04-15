@@ -284,10 +284,12 @@ def run():
                 if expanded:
                     links.append(expanded)
 
-            # Determine if this is an original post (not a retweet/quote/reply)
+            # Skip retweets, quotes, and replies — only ingest original posts
+            # by the list members themselves
             referenced = tweet.get('referenced_tweets', [])
             ref_types = {r.get('type') for r in referenced} if referenced else set()
-            is_original = not ref_types.intersection({'retweeted', 'quoted', 'replied_to'})
+            if ref_types.intersection({'retweeted', 'quoted', 'replied_to'}):
+                continue
 
             new_tweets.append({
                 'external_id': tweet_id,
@@ -301,7 +303,6 @@ def run():
                 'views': metrics.get('impression_count', 0),
                 'links': json.dumps(links),
                 '_metrics': metrics,
-                '_is_original': is_original,
             })
 
         if not new_tweets:
@@ -333,7 +334,7 @@ def run():
                             'gauntlet_graduates', post['links'], embedding
                         ))
                         row = cur.fetchone()
-                        if row and post.get('_is_original') and post['author'].lower() not in POPULAR_EXCLUDED_AUTHORS:
+                        if row and post['author'].lower() not in POPULAR_EXCLUDED_AUTHORS:
                             # Only check popularity for original posts (not retweets/quotes/replies)
                             # and excluded authors
                             check_popular_thresholds(cur, conn, str(row['id']), {
