@@ -38,12 +38,109 @@ const platformConfig: Record<string, { label: string; dot: string; bg: string; t
 
 const TRUNCATE_AT = 280;
 
+/** Build a profile/entity URL based on platform and token type */
+function buildLink(platform: string, type: "mention" | "hashtag" | "subreddit", value: string): string | null {
+  const clean = value.replace(/^[@#]/, "");
+  switch (platform) {
+    case "x":
+      if (type === "mention") return `https://x.com/${clean}`;
+      if (type === "hashtag") return `https://x.com/hashtag/${clean}`;
+      return null;
+    case "reddit":
+      if (type === "mention") return `https://www.reddit.com/user/${clean}`;
+      if (type === "subreddit") return `https://www.reddit.com/r/${clean}`;
+      if (type === "hashtag") return null;
+      return null;
+    case "linkedin":
+      if (type === "mention") return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(clean)}`;
+      return null;
+    default:
+      return null;
+  }
+}
+
+/** Parse post content into segments: plain text, @mentions, #hashtags, r/subreddits */
+function parseContent(text: string, platform: string): React.ReactNode[] {
+  // Match: @username, #hashtag, r/subreddit, u/username
+  const regex = /(@[\w.]+|#[\w]+|r\/[\w]+|u\/[\w]+)/g;
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    const token = match[0];
+    const start = match.index;
+
+    // Push preceding plain text
+    if (start > last) {
+      parts.push(text.slice(last, start));
+    }
+
+    let href: string | null = null;
+    let type: "mention" | "hashtag" | "subreddit" = "mention";
+
+    if (token.startsWith("r/")) {
+      type = "subreddit";
+      href = `https://www.reddit.com/${token}`;
+    } else if (token.startsWith("u/")) {
+      type = "mention";
+      href = `https://www.reddit.com/user/${token.slice(2)}`;
+    } else if (token.startsWith("@")) {
+      type = "mention";
+      href = buildLink(platform, "mention", token);
+    } else if (token.startsWith("#")) {
+      type = "hashtag";
+      href = buildLink(platform, "hashtag", token);
+    }
+
+    if (href) {
+      parts.push(
+        <a
+          key={start}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "font-medium transition-colors",
+            type === "mention"
+              ? "text-primary hover:text-primary/70"
+              : "text-violet-500 hover:text-violet-400"
+          )}
+        >
+          {token}
+        </a>
+      );
+    } else {
+      // No link available — still color it
+      parts.push(
+        <span
+          key={start}
+          className={type === "mention" ? "text-primary font-medium" : "text-violet-500 font-medium"}
+        >
+          {token}
+        </span>
+      );
+    }
+
+    last = start + token.length;
+  }
+
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+
+  return parts;
+}
+
 export function ResultCard({ post, index = 0 }: ResultCardProps) {
   const [expanded, setExpanded] = useState(false);
   const platform = platformConfig[post.platform] ?? platformConfig.slack;
   const isLong = post.content.length > TRUNCATE_AT;
-  const displayContent =
+  const displayText =
     isLong && !expanded ? post.content.slice(0, TRUNCATE_AT).trimEnd() + "…" : post.content;
+
+  const parsedContent = parseContent(displayText, post.platform);
 
   return (
     <div
@@ -69,7 +166,7 @@ export function ResultCard({ post, index = 0 }: ResultCardProps) {
 
       {/* Content */}
       <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap break-words">
-        {displayContent}
+        {parsedContent}
       </p>
 
       {isLong && (
@@ -87,28 +184,20 @@ export function ResultCard({ post, index = 0 }: ResultCardProps) {
           {post.platform === "x" && (
             <>
               {post.likes !== undefined && post.likes > 0 && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span>♥</span> {post.likes.toLocaleString()}
-                </span>
+                <span className="text-xs text-muted-foreground">♥ {post.likes.toLocaleString()}</span>
               )}
               {post.retweets !== undefined && post.retweets > 0 && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span>↩</span> {post.retweets.toLocaleString()}
-                </span>
+                <span className="text-xs text-muted-foreground">↩ {post.retweets.toLocaleString()}</span>
               )}
             </>
           )}
           {post.platform === "reddit" && (
             <>
               {post.likes !== undefined && post.likes > 0 && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span>⬆</span> {post.likes.toLocaleString()}
-                </span>
+                <span className="text-xs text-muted-foreground">⬆ {post.likes.toLocaleString()}</span>
               )}
               {post.replies !== undefined && post.replies > 0 && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span>💬</span> {post.replies.toLocaleString()}
-                </span>
+                <span className="text-xs text-muted-foreground">💬 {post.replies.toLocaleString()}</span>
               )}
             </>
           )}
