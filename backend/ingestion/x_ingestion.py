@@ -40,6 +40,10 @@ POPULAR_THRESHOLD_X_LIKES    = int(os.getenv('POPULAR_THRESHOLD_X_LIKES', 300))
 POPULAR_THRESHOLD_X_REPOSTS  = int(os.getenv('POPULAR_THRESHOLD_X_REPOSTS', 50))
 POPULAR_THRESHOLD_X_REPLIES  = int(os.getenv('POPULAR_THRESHOLD_X_REPLIES', 50))
 
+# Authors to exclude from popular flagging (lowercase, no @)
+POPULAR_EXCLUDED_AUTHORS = {a.strip().lower().lstrip('@')
+                            for a in os.getenv('POPULAR_EXCLUDED_AUTHORS', 'jason').split(',') if a.strip()}
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 log = logging.getLogger(__name__)
 
@@ -329,8 +333,9 @@ def run():
                             'gauntlet_graduates', post['links'], embedding
                         ))
                         row = cur.fetchone()
-                        if row and post.get('_is_original'):
+                        if row and post.get('_is_original') and post['author'].lower() not in POPULAR_EXCLUDED_AUTHORS:
                             # Only check popularity for original posts (not retweets/quotes/replies)
+                            # and excluded authors
                             check_popular_thresholds(cur, conn, str(row['id']), {
                                 'author': post['author'],
                                 'content': post['content'],
