@@ -171,6 +171,21 @@ def check_popular_thresholds(cur, conn, post_id: str, post: dict):
 
 # ─── Post Parsing ──────────────────────────────────────────────────────────────
 
+# LinkedIn snowflake ID epoch (calibrated from known post dates)
+# activity_id >> 22 + LI_EPOCH_MS = unix ms of post creation
+LI_EPOCH_MS = -48468447
+
+
+def li_id_to_datetime(external_id: str) -> Optional[datetime]:
+    """Extract publish datetime from a LinkedIn activity ID (li_XXXXXXX format)."""
+    try:
+        activity_id = int(external_id.replace('li_', ''))
+        ms = (activity_id >> 22) + LI_EPOCH_MS
+        return datetime.utcfromtimestamp(ms / 1000)
+    except Exception:
+        return None
+
+
 def _parse_li_timestamp(obj: dict) -> Optional[datetime]:
     """Extract a datetime from a LinkedIn API object — tries all known timestamp fields."""
     if not isinstance(obj, dict):
@@ -230,8 +245,8 @@ def parse_company_update(raw: dict, company_name: str) -> Optional[dict]:
     # Permalink from raw
     source_url = raw.get('permalink', f'https://www.linkedin.com/feed/update/{urn}/')
 
-    # Timestamp — try multiple fields, fall back to ingestion time
-    published_at = _parse_li_timestamp(raw) or _parse_li_timestamp(val) or datetime.utcnow()
+    # Timestamp — derive from snowflake ID first (most reliable), then API fields
+    published_at = li_id_to_datetime(f'li_{activity_id}') or _parse_li_timestamp(raw) or _parse_li_timestamp(val) or datetime.utcnow()
 
     return {
         'external_id': f'li_{activity_id}',
@@ -284,7 +299,7 @@ def parse_profile_post(raw: dict) -> Optional[dict]:
 
     source_url = raw.get('permalink', f'https://www.linkedin.com/feed/update/{urn}/')
 
-    published_at = _parse_li_timestamp(raw) or _parse_li_timestamp(val) or datetime.utcnow()
+    published_at = li_id_to_datetime(f'li_{activity_id}') or _parse_li_timestamp(raw) or _parse_li_timestamp(val) or datetime.utcnow()
 
     return {
         'external_id': f'li_{activity_id}',
