@@ -15,7 +15,7 @@ Stores all ingested social content (X tweets + Slack messages).
 | Column | Type | Notes |
 |--------|------|-------|
 | id | UUID | Primary key |
-| platform | ENUM('x', 'slack') | Source platform |
+| platform | ENUM('x', 'slack', 'linkedin') | Source platform |
 | external_id | VARCHAR UNIQUE | Tweet ID or Slack message ts |
 | author | VARCHAR | Username or display name |
 | content | TEXT | Full post/message text |
@@ -30,6 +30,7 @@ Stores all ingested social content (X tweets + Slack messages).
 | links | JSONB | Array of URLs extracted from post |
 | embedding | VECTOR(1536) | For semantic search via pgvector |
 | engagement_updated_at | TIMESTAMP | Last engagement metric refresh |
+| is_mention | BOOLEAN | TRUE if post was found via mention/keyword search |
 
 ### `project_updates`
 
@@ -49,7 +50,7 @@ Tracks ingestion state per source for resumability.
 
 | Column | Type | Notes |
 |--------|------|-------|
-| source | VARCHAR PK | 'slack' \| 'x' \| 'openclaw' |
+| source | VARCHAR PK | 'slack' \| 'x' \| 'openclaw' \| 'linkedin_mentions' |
 | last_id | VARCHAR | Last ingested external ID or cursor |
 | last_run_at | TIMESTAMP | When job last completed |
 | status | ENUM('success', 'failed', 'running') | |
@@ -114,3 +115,4 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp"; -- UUID generation
 | File | Description | Date |
 |------|-------------|------|
 | 001_initial_schema.sql | Created posts, project_updates, ingestion_checkpoints, query_history tables + all indexes + tsvector trigger | 2026-03-20 |
+| 002_linkedin_mentions.sql | Added `linkedin` to platform_enum, `is_mention` column + index on posts, seeded `linkedin_mentions` checkpoint | 2026-04-15 |

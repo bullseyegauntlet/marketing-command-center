@@ -90,3 +90,36 @@ Marketing Command Center | OpenClaw (Bullseye)
 - Routes compiled: `/` (static), `/history` (static)
 
 **Status:** Complete ✅
+
+---
+
+## LinkedIn Mentions Ingestion
+
+### 2026-04-15
+
+**Research completed** — see `LINKEDIN_RESEARCH.md`
+- Official LinkedIn API ruled out (can't fetch arbitrary posts)
+- Decision: `linkedin-api` (unofficial, free) as primary; Proxycurl as paid fallback
+- Primary use case: keyword/mention monitoring (not profile following)
+
+**Migration 002 written** (`backend/migrations/002_linkedin_mentions.sql`)
+- Added `linkedin` to `platform_enum`
+- Added `is_mention BOOLEAN` column + index to `posts` table
+- Seeded `linkedin_mentions` row in `ingestion_checkpoints`
+
+**Ingestion script built** (`backend/ingestion/linkedin_mentions_ingestion.py`)
+- Searches LinkedIn for each keyword in `LINKEDIN_MENTION_KEYWORDS` (default: "Gauntlet AI,gauntletai")
+- Parses author name, post text, engagement metrics, links, URN-based external_id
+- Embeds and inserts with `platform='linkedin'`, `is_mention=True`, `channel='linkedin_mentions'`
+- Full dedup (across keyword runs + DB), dead letter logging, Slack alerts on repeated failures
+- Checkpoint pattern matches X/Slack ingestion (source = `'linkedin_mentions'`)
+
+**`requirements.txt`** updated: added `linkedin-api>=2.3.1`
+
+**Pending (not yet done):**
+- Run migration 002 against Railway production DB
+- Set `LINKEDIN_EMAIL`, `LINKEDIN_PASSWORD`, `LINKEDIN_MENTION_KEYWORDS` in Railway env vars
+- Create dedicated bot LinkedIn account (do NOT use a personal account)
+- Add GitHub Actions cron job (recommended: daily, e.g. `0 8 * * *`)
+- Build `GET /api/mentions` backend endpoint (Phase 2 of @Mentions tab PRD)
+- Build frontend @Mentions tab (Phase 2 of @Mentions tab PRD)
