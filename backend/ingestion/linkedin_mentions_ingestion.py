@@ -7,14 +7,22 @@ Uses linkedin-api (unofficial Voyager API wrapper). Requires a dedicated bot acc
 See: https://github.com/tomquirk/linkedin-api
 
 Env vars:
-  LINKEDIN_EMAIL             Bot account email
-  LINKEDIN_PASSWORD          Bot account password
+  LINKEDIN_EMAIL             Bot account email (used with password auth)
+  LINKEDIN_PASSWORD          Bot account password (optional if using cookie auth)
+  LINKEDIN_COOKIES_PATH      Path to JSON file with LinkedIn cookies (preferred for Google SSO accounts)
   LINKEDIN_MENTION_KEYWORDS  Comma-separated keywords (default: "Gauntlet AI,gauntletai")
   DATABASE_URL               PostgreSQL connection string
   OPENROUTER_API_KEY         For embeddings
   OPENAI_API_KEY             Fallback for embeddings
   SLACK_BOT_TOKEN            For error alerts (optional)
   SLACK_ALERT_CHANNEL        Slack channel for error alerts (optional)
+
+Auth note:
+  This bot account was created via Google OAuth and has no LinkedIn password.
+  Authentication uses cookie-based auth via LINKEDIN_COOKIES_PATH.
+  Cookies are stored at ~/.openclaw/secrets/linkedin_cookies.json.
+  They expire after ~1-2 weeks and must be refreshed by logging in via browser
+  and re-running: openclaw browser cookies --browser-profile openclaw
 """
 
 import json
@@ -33,8 +41,9 @@ from openai import OpenAI
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '../../.env'))
 
 DB_URL = os.getenv('DATABASE_URL')
-LI_EMAIL = os.getenv('LINKEDIN_EMAIL')
+LI_EMAIL = os.getenv('LINKEDIN_EMAIL', 'bullseye.gauntlet@gmail.com')
 LI_PASSWORD = os.getenv('LINKEDIN_PASSWORD')
+LI_COOKIES_PATH = os.getenv('LINKEDIN_COOKIES_PATH', os.path.expanduser('~/.openclaw/secrets/linkedin_cookies.json'))
 LI_KEYWORDS_RAW = os.getenv('LINKEDIN_MENTION_KEYWORDS', 'Gauntlet AI,gauntletai')
 LI_KEYWORDS = [k.strip() for k in LI_KEYWORDS_RAW.split(',') if k.strip()]
 SLACK_TOKEN = os.getenv('SLACK_BOT_TOKEN')
@@ -187,8 +196,18 @@ def run():
     failures = row['consecutive_failures'] if row else 0
 
     try:
-        log.info(f'Authenticating with LinkedIn as {LI_EMAIL}')
-        api = Linkedin(LI_EMAIL, LI_PASSWORD)
+        # Cookie-based auth (preferred for Google SSO accounts with no LinkedIn password)
+        if LI_COOKIES_PATH and os.path.exists(LI_COOKIES_PATH):
+            log.info(f'Authenticating with LinkedIn via cookies from {LI_COOKIES_PATH}')
+            with open(LI_COOKIES_PATH) as f:
+                cookies = json.load(f)
+            api = Linkedin(LI_EMAIL, '', cookies=cookies)
+        elif LI_EMAIL and LI_PASSWORD:
+            log.info(f'Authenticating with LinkedIn via email/password as {LI_EMAIL}')
+            api = Linkedin(LI_EMAIL, LI_PASSWORD)
+        else:
+            log.error('No LinkedIn auth method available. Set LINKEDIN_COOKIES_PATH or LINKEDIN_EMAIL+LINKEDIN_PASSWORD.')
+            return
 
         all_parsed = []
         seen_ids = set()
