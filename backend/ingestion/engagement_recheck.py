@@ -30,11 +30,13 @@ X_ACCESS_TOKEN_SECRET           = os.getenv('X_ACCESS_TOKEN_SECRET')
 SLACK_TOKEN                     = os.getenv('SLACK_BOT_TOKEN')
 ALERT_CHANNEL                   = os.getenv('SLACK_ALERT_CHANNEL')
 
-POPULAR_THRESHOLD_X_VIEWS       = int(os.getenv('POPULAR_THRESHOLD_X_VIEWS', 1000000))
-POPULAR_THRESHOLD_X_LIKES       = int(os.getenv('POPULAR_THRESHOLD_X_LIKES', 300))
-POPULAR_THRESHOLD_X_REPOSTS     = int(os.getenv('POPULAR_THRESHOLD_X_REPOSTS', 50))
-POPULAR_THRESHOLD_X_REPLIES     = int(os.getenv('POPULAR_THRESHOLD_X_REPLIES', 50))
-POPULAR_THRESHOLD_SLACK_REPLIES = int(os.getenv('POPULAR_THRESHOLD_SLACK_REPLIES', 20))
+POPULAR_THRESHOLD_X_VIEWS       = int(os.getenv('POPULAR_THRESHOLD_X_VIEWS', 1000))
+POPULAR_THRESHOLD_X_LIKES       = int(os.getenv('POPULAR_THRESHOLD_X_LIKES', 500))
+POPULAR_THRESHOLD_X_REPOSTS     = int(os.getenv('POPULAR_THRESHOLD_X_REPOSTS', 100))
+POPULAR_THRESHOLD_X_REPLIES     = int(os.getenv('POPULAR_THRESHOLD_X_REPLIES', 100))
+POPULAR_THRESHOLD_SLACK_REPLIES   = int(os.getenv('POPULAR_THRESHOLD_SLACK_REPLIES', 20))
+POPULAR_THRESHOLD_REDDIT_UPVOTES  = int(os.getenv('POPULAR_THRESHOLD_REDDIT_UPVOTES', 100))
+POPULAR_THRESHOLD_REDDIT_COMMENTS = int(os.getenv('POPULAR_THRESHOLD_REDDIT_COMMENTS', 50))
 POPULAR_EXCLUDED_AUTHORS        = {a.strip().lower().lstrip('@')
                                    for a in os.getenv('POPULAR_EXCLUDED_AUTHORS', 'jason').split(',') if a.strip()}
 
@@ -265,6 +267,75 @@ def recheck_slack_posts(cur, conn, posts: list):
             send_popular_alert_slack(post, reply_count)
 
 
+def recheck_reddit_posts(cur, conn, posts: list):
+    """Re-fetch upvote/comment counts for Reddit posts via public API and flag as needed."""
+    if not posts:
+        return
+
+    for post in posts:
+        external_id = post.get('external_id', '')
+        # external_id format: reddit_<post_id>
+        post_id = external_id.replace('reddit_', '')
+        if not post_id:
+            continue
+
+        try:
+            r = requests.get(
+                f'https://www.reddit.com/by_id/t3_{post_id}.json',
+                params={'limit': 1},
+                headers={'User-Agent': f'MCC-Monitor/1.0 by Bullseye_Gauntlet'},
+                timeout=10,
+            )
+            if not r.ok:
+                continue
+            children = r.json().get('data', {}).get('children', [])
+            if not children:
+                continue
+            data = children[0].get('data', {})
+        except Exception as e:
+            log.warning(f'Failed to fetch Reddit post {post_id}: {e}')
+            continue
+
+        upvotes  = data.get('score', 0)
+        comments = data.get('num_comments', 0)
+
+        triggered_by = None
+        metric_value = 0
+        if upvotes >= POPULAR_THRESHOLD_REDDIT_UPVOTES:
+            triggered_by, metric_value = 'upvotes', upvotes
+        elif comments >= POPULAR_THRESHOLD_REDDIT_COMMENTS:
+            triggered_by, metric_value = 'comments', comments
+
+        if not triggered_by:
+            continue
+
+        newly_flagged = flag_popular(cur, conn, str(post['id']), triggered_by, metric_value)
+        if newly_flagged:
+            log.info(f'Recheck flagged Reddit post {post["id"]} ({triggered_by}: {metric_value})')
+            # Send alert
+            content_preview = post.get('content', '')[:200]
+            channel = post.get('channel', 'reddit')
+            url = post.get('source_url', '')
+            threshold = POPULAR_THRESHOLD_REDDIT_UPVOTES if triggered_by == 'upvotes' else POPULAR_THRESHOLD_REDDIT_COMMENTS
+            message = (
+                f'🔥 *Trending Reddit Post Detected*\n\n'
+                f'*r/{channel}* is blowing up:\n\n'
+                f'> "{content_preview}"\n\n'
+                f'⬆️ *{upvotes:,} upvotes*  💬 *{comments:,} comments*\n'
+                f'📎 {url}\n\n'
+                f'_Triggered by: {metric_value:,} {triggered_by} (threshold: {threshold:,})_'
+            )
+            if ALERT_CHANNEL and SLACK_TOKEN:
+                try:
+                    requests.post('https://slack.com/api/chat.postMessage',
+                        headers={'Authorization': f'Bearer {SLACK_TOKEN}'},
+                        json={'channel': ALERT_CHANNEL, 'text': message}, timeout=10)
+                except Exception as e:
+                    log.error(f'Failed to send Reddit alert: {e}')
+
+        time.sleep(0.5)  # be gentle with public API
+
+
 def run():
     conn = psycopg2.connect(DB_URL)
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -296,6 +367,19 @@ def run():
         slack_posts = [dict(r) for r in cur.fetchall()]
         log.info(f'Rechecking {len(slack_posts)} Slack posts')
         recheck_slack_posts(cur, conn, slack_posts)
+
+        # Fetch Reddit posts from last RECHECK_WINDOW_HOURS not yet flagged
+        cur.execute('''
+            SELECT p.id, p.external_id, p.author, p.content, p.source_url, p.channel
+            FROM posts p
+            LEFT JOIN popular_posts pp ON pp.post_id = p.id
+            WHERE p.platform = 'reddit'
+              AND p.ingested_at >= NOW() - INTERVAL '%s hours'
+              AND pp.id IS NULL
+        ''', (RECHECK_WINDOW_HOURS,))
+        reddit_posts = [dict(r) for r in cur.fetchall()]
+        log.info(f'Rechecking {len(reddit_posts)} Reddit posts')
+        recheck_reddit_posts(cur, conn, reddit_posts)
 
         log.info('Engagement recheck complete.')
 

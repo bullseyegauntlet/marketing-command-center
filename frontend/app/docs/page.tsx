@@ -143,10 +143,10 @@ export default function DocsPage() {
               <Row label="Exclusions" value="@jason is excluded from flagging." />
             </Card>
             <Card title="Thresholds">
-              <Row label="X views" value="> 1,000,000" />
-              <Row label="X likes" value="> 300" />
-              <Row label="X reposts" value="> 50" />
-              <Row label="X replies" value="> 50" />
+              <Row label="X views" value="> 1,000" />
+              <Row label="X likes" value="> 500" />
+              <Row label="X reposts" value="> 100" />
+              <Row label="X replies" value="> 100" />
               <Row label="Slack thread replies" value="> 20" />
               <Row label="Reddit upvotes" value="> 100" />
               <Row label="Reddit comments" value="> 50" />
@@ -190,7 +190,7 @@ export default function DocsPage() {
               <Row label="Note" value="Uses session cookies that expire every ~2 weeks. Refresh when ingestion starts returning zero results." />
             </Card>
             <Card title="Engagement recheck">
-              <Row label="What" value="Re-fetches current metrics (views, likes, reposts, replies) for posts from the last 72 hours" />
+              <Row label="What" value="Re-fetches current metrics for X, Slack, and Reddit posts from the last 72 hours" />
               <Row label="Why" value="Posts can go viral hours after initial ingestion — this catches them" />
               <Row label="Schedule" value="Every 4 hours" />
             </Card>
