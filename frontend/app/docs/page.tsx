@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-type Section = "overview" | "search" | "mentions" | "popular" | "history" | "ingestion" | "accounts";
+type Section = "overview" | "search" | "mentions" | "popular" | "ingestion" | "accounts";
 
 const sections: { id: Section; label: string; emoji: string }[] = [
   { id: "overview", label: "Overview", emoji: "🗺️" },
   { id: "search", label: "Search", emoji: "🔍" },
   { id: "mentions", label: "@Mentions", emoji: "📡" },
   { id: "popular", label: "Popular", emoji: "🔥" },
-  { id: "history", label: "History", emoji: "🕐" },
   { id: "ingestion", label: "Ingestion", emoji: "⚙️" },
   { id: "accounts", label: "Accounts", emoji: "🎯" },
 ];
@@ -73,7 +72,7 @@ export default function DocsPage() {
               <Row label="Search" value="Semantic search across all ingested Slack and X content with AI-generated summaries" />
               <Row label="@Mentions" value="Auto-ingested brand mentions from X and LinkedIn — no manual searching required" />
               <Row label="🔥 Popular" value="Automatically flags high-engagement original posts and alerts #bullseye_comms" />
-              <Row label="History" value="Every search query is saved with its results for future reference" />
+
             </Card>
             <Card title="Stack">
               <Row label="Frontend" value="Next.js — deployed on Netlify" />
@@ -108,11 +107,7 @@ export default function DocsPage() {
               <Row label="Summary" value="Claude generates a 2–3 sentence grounded answer from the top results" />
               <Row label="History" value="Every search is saved and surfaced as recent searches below the search bar" />
             </Card>
-            <Card title="Tips">
-              <Row label="Platform filter" value='Say "on Slack" or "from X" to restrict results to one platform' />
-              <Row label="Time filter" value='Say "last week", "in March 2025", or "Q1 2026" to scope by date' />
-              <Row label="Recent searches" value="Shown below the search bar — click any to re-run it instantly" />
-            </Card>
+
           </div>
         )}
 
@@ -128,9 +123,7 @@ export default function DocsPage() {
               <Row label="LinkedIn" value="Keyword search runs daily — same brand terms. Results vary by session freshness." />
               <Row label="Filters" value="Filter by platform (All / X / LinkedIn) and time range (24h / 7d / 30d)" />
             </Card>
-            <Card title="Badge">
-              <Row label="Tab badge" value="Shows count of new mentions in the last 24 hours. Clears when you visit the tab." />
-            </Card>
+
           </div>
         )}
 
@@ -158,21 +151,6 @@ export default function DocsPage() {
               <Row label="Platform" value="All / X / Slack" />
               <Row label="Time range" value="7 days / 30 days / All time" />
               <Row label="Sort" value="Most recently flagged first" />
-            </Card>
-          </div>
-        )}
-
-        {/* ── HISTORY ── */}
-        {active === "history" && (
-          <div className="space-y-5">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground">History</h1>
-              <p className="text-sm text-muted-foreground mt-1">Your saved search queries</p>
-            </div>
-            <Card title="How it works">
-              <Row label="Auto-saved" value="Every search run in the Search tab is automatically saved — query text, engine, result count, AI summary, and a snapshot of the top results." />
-              <Row label="Access" value="Recent searches appear below the search bar in the Search tab. Click any to re-run it instantly." />
-              <Row label="Snapshots" value="Results are frozen at query time — useful for seeing how answers change as new content is ingested." />
             </Card>
           </div>
         )}
