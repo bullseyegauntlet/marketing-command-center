@@ -96,7 +96,21 @@ def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
         query = re.sub(r'\bin\s+20\d{2}\b', '', query, flags=re.IGNORECASE).strip()
         return query.strip(), date_from, date_to
 
-    # "last week / last month / last N days"
+    # Relative time expressions — all stored as "NOW() - INTERVAL '...'" strings
+    # "today" / "this week" / "this month"
+    for pattern, interval in [
+        (r'\btoday\b', "NOW() - INTERVAL '1 day'"),
+        (r'\bthis\s+week\b', "NOW() - INTERVAL '7 days'"),
+        (r'\bthis\s+month\b', "NOW() - INTERVAL '30 days'"),
+        (r'\bthis\s+year\b', "NOW() - INTERVAL '365 days'"),
+    ]:
+        m = re.search(pattern, q)
+        if m:
+            date_from = interval
+            query = re.sub(pattern, '', query, flags=re.IGNORECASE).strip()
+            return query.strip(), date_from, None
+
+    # "last N days"
     m = re.search(r'\blast\s+(\d+)\s+days?\b', q)
     if m:
         days = int(m.group(1))
@@ -104,16 +118,25 @@ def parse_temporal(query: str) -> Tuple[str, Optional[str], Optional[str]]:
         query = re.sub(r'\blast\s+\d+\s+days?\b', '', query, flags=re.IGNORECASE).strip()
         return query.strip(), date_from, None
 
-    m = re.search(r'\blast\s+week\b', q)
+    # "last week" / "past week" / "this past week"
+    m = re.search(r'\b(?:last|past)\s+week\b', q)
     if m:
         date_from = "NOW() - INTERVAL '7 days'"
-        query = re.sub(r'\blast\s+week\b', '', query, flags=re.IGNORECASE).strip()
+        query = re.sub(r'\b(?:last|past)\s+week\b', '', query, flags=re.IGNORECASE).strip()
         return query.strip(), date_from, None
 
-    m = re.search(r'\blast\s+month\b', q)
+    # "last month" / "past month"
+    m = re.search(r'\b(?:last|past)\s+month\b', q)
     if m:
         date_from = "NOW() - INTERVAL '30 days'"
-        query = re.sub(r'\blast\s+month\b', '', query, flags=re.IGNORECASE).strip()
+        query = re.sub(r'\b(?:last|past)\s+month\b', '', query, flags=re.IGNORECASE).strip()
+        return query.strip(), date_from, None
+
+    # "recently" / "recent" — treat as last 14 days
+    m = re.search(r'\brecentl?y?\b', q)
+    if m:
+        date_from = "NOW() - INTERVAL '14 days'"
+        query = re.sub(r'\brecentl?y?\b', '', query, flags=re.IGNORECASE).strip()
         return query.strip(), date_from, None
 
     # Q1/Q2/Q3/Q4 [year]
@@ -387,8 +410,7 @@ def semantic_query(req: SemanticQueryRequest):
             sql += " AND channel = %s"
             params.append(req.channel)
         if req.days and not date_from:
-            sql += " AND published_at >= NOW() - INTERVAL '%s days'"
-            params.append(req.days)
+            sql += f" AND published_at >= NOW() - INTERVAL '{int(req.days)} days'"
 
         # When time range explicit: rank by similarity only; otherwise blend with recency
         if date_from or date_to or req.days:
