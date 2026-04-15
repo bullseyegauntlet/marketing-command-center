@@ -84,6 +84,7 @@ export default function DocsPage() {
             <Card title="Data sources">
               <Row label="X" value="Gauntlet graduates list + brand mention search" />
               <Row label="Slack" value="#ai-first-methodologies, #claude-maxxing, #industry-news" />
+              <Row label="Reddit" value='Keyword search + r/gauntletai + related subreddits (ML, cs careers, etc.)' />
               <Row label="LinkedIn" value="Keyword mention search (Gauntlet AI, gauntletai, etc.)" />
             </Card>
             <Card title="Scheduled jobs">
@@ -120,8 +121,9 @@ export default function DocsPage() {
             </div>
             <Card title="How it works">
               <Row label="X" value='Brand mention search runs daily — finds posts matching "Gauntlet AI", @GauntletAI, or gauntletai. Retweets excluded.' />
+              <Row label="Reddit" value='Keyword search + r/gauntletai + related subreddits. Runs daily. No OAuth needed.' />
               <Row label="LinkedIn" value="Keyword search runs daily — same brand terms. Results vary by session freshness." />
-              <Row label="Filters" value="Filter by platform (All / X / LinkedIn) and time range (24h / 7d / 30d)" />
+              <Row label="Filters" value="Filter by platform (All / X / Reddit / LinkedIn) and time range (24h / 7d / 30d)" />
             </Card>
 
           </div>
@@ -172,6 +174,11 @@ export default function DocsPage() {
               <Row label="Threads" value="Full thread replies are fetched and ingested as individual posts" />
               <Row label="Schedule" value="Daily at 2am CDT" />
             </Card>
+            <Card title="Reddit">
+              <Row label="Source" value='Keyword search ("Gauntlet AI", gauntletai, etc.) + r/gauntletai + related subreddits (r/MachineLearning, r/cscareerquestions, r/learnmachinelearning)' />
+              <Row label="Schedule" value="Daily at 2am CDT (runs alongside X and Slack)" />
+              <Row label="Auth" value="Public API — no OAuth required for read-only access. Add REDDIT_CLIENT_ID/SECRET to .env for higher rate limits." />
+            </Card>
             <Card title="LinkedIn">
               <Row label="Source" value="Keyword search — Gauntlet AI, gauntletai, and related terms" />
               <Row label="Schedule" value="Daily at 8am UTC via GitHub Actions" />
@@ -199,6 +206,9 @@ export default function DocsPage() {
             <Card title="Slack">
               <Row label="Bot name" value="Bullseye" />
               <Row label="Alert channel" value="#bullseye_comms" />
+            </Card>
+            <Card title="Reddit">
+              <Row label="Account" value={<a href="https://www.reddit.com/user/Bullseye_Gauntlet/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">u/Bullseye_Gauntlet</a>} />
             </Card>
             <Card title="LinkedIn">
               <Row label="Account" value={<a href="https://linkedin.com/in/bullseye-undefined-290927403/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Bullseye</a>} />

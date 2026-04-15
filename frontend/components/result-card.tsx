@@ -18,6 +18,14 @@ const platformConfig: Record<string, { label: string; badgeClass: string }> = {
     label: "Slack",
     badgeClass: "bg-purple-600 text-white",
   },
+  reddit: {
+    label: "Reddit",
+    badgeClass: "bg-orange-600 text-white",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    badgeClass: "bg-blue-700 text-white",
+  },
 };
 
 const TRUNCATE_AT = 280;

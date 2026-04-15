@@ -71,7 +71,7 @@ export interface MentionsFeed {
   total: number;
   page: number;
   page_size: number;
-  by_platform: { x: number; linkedin: number };
+  by_platform: { x: number; linkedin: number; reddit?: number };
 }
 
 export interface PopularPost extends Post {

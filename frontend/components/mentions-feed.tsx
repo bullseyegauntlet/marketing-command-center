@@ -6,7 +6,7 @@ import { ResultCard } from "@/components/result-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-type Platform = "all" | "x" | "linkedin";
+type Platform = "all" | "x" | "linkedin" | "reddit";
 type TimeRange = "1" | "7" | "30";
 
 export function MentionsFeed() {
@@ -55,7 +55,7 @@ export function MentionsFeed() {
       <div className="flex flex-wrap items-center gap-3">
         {/* Platform filter */}
         <div className="flex items-center rounded-full border border-border bg-white overflow-hidden text-xs font-medium">
-          {(["all", "x", "linkedin"] as Platform[]).map((p) => (
+          {(["all", "x", "reddit", "linkedin"] as Platform[]).map((p) => (
             <button
               key={p}
               onClick={() => setPlatform(p)}
@@ -66,7 +66,7 @@ export function MentionsFeed() {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {p === "all" ? "All" : p === "x" ? "X" : "LinkedIn"}
+              {p === "all" ? "All" : p === "x" ? "X" : p === "reddit" ? "Reddit" : "LinkedIn"}
             </button>
           ))}
         </div>
@@ -100,6 +100,11 @@ export function MentionsFeed() {
             {byPlatform.x > 0 && (
               <span className="text-xs text-muted-foreground">
                 · <span className="font-medium text-foreground">{byPlatform.x}</span> X
+              </span>
+            )}
+            {byPlatform.reddit !== undefined && byPlatform.reddit > 0 && (
+              <span className="text-xs text-muted-foreground">
+                · <span className="font-medium text-foreground">{byPlatform.reddit}</span> Reddit
               </span>
             )}
             {byPlatform.linkedin > 0 && (

@@ -278,6 +278,8 @@ def stats():
         except Exception:
             pass
 
+        
+
         # Popular posts stats
         popular_total = 0
         popular_last_24h = 0
@@ -301,6 +303,7 @@ def stats():
                 'last_24h': mention_last_24h,
                 'x': mention_by_platform.get('x', 0),
                 'linkedin': mention_by_platform.get('linkedin', 0),
+                'reddit': mention_by_platform.get('reddit', 0),
             },
             'popular': {
                 'total': popular_total,
@@ -633,6 +636,7 @@ def mentions(
             'page_size': page_size,
             'by_platform': {
                 'x': by_platform.get('x', 0),
+                'reddit': by_platform.get('reddit', 0),
                 'linkedin': by_platform.get('linkedin', 0),
             },
         }
