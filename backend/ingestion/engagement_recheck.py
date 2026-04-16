@@ -329,6 +329,31 @@ def run():
         log.info(f'Rechecking {len(reddit_posts)} Reddit posts')
         flagged += recheck_reddit_posts(cur, conn, reddit_posts)
 
+        # Remove popular_posts entries that no longer meet thresholds
+        cur.execute('''
+            DELETE FROM popular_posts
+            WHERE post_id IN (
+                SELECT pp.post_id
+                FROM popular_posts pp
+                JOIN posts p ON p.id = pp.post_id
+                WHERE p.platform = 'x' AND NOT (
+                    (p.views IS NOT NULL AND p.views >= %(x_views)s)
+                    OR (p.likes IS NOT NULL AND p.likes >= %(x_likes)s)
+                    OR (p.replies IS NOT NULL AND p.replies >= %(x_replies)s)
+                    OR (p.retweets IS NOT NULL AND p.retweets >= %(x_reposts)s)
+                )
+            )
+        ''', {
+            'x_views':   POPULAR_THRESHOLD_X_VIEWS,
+            'x_likes':   POPULAR_THRESHOLD_X_LIKES,
+            'x_replies': POPULAR_THRESHOLD_X_REPLIES,
+            'x_reposts': POPULAR_THRESHOLD_X_REPOSTS,
+        })
+        removed = cur.rowcount
+        conn.commit()
+        if removed:
+            log.info(f'Pruned {removed} popular_posts entries that fell below current thresholds.')
+
         send_aggregated_alert(flagged)
         log.info(f'Engagement recheck complete. {len(flagged)} newly flagged.')
 
