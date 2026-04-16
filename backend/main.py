@@ -41,7 +41,7 @@ def safe_json(obj):
     if isinstance(obj, Decimal):
         return float(obj)
     if isinstance(obj, datetime):
-        return obj.isoformat()
+        return obj.isoformat() + 'Z'
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 MONTHS = {
@@ -289,7 +289,7 @@ def health():
         for row in cur.fetchall():
             status['pipelines'][row['source']] = {
                 'status': row['status'],
-                'last_run_at': row['last_run_at'].isoformat() if row['last_run_at'] else None,
+                'last_run_at': row['last_run_at'].isoformat() + 'Z' if row['last_run_at'] else None,
                 'consecutive_failures': row['consecutive_failures'],
             }
         cur.execute("SELECT COUNT(*) as total FROM posts")
@@ -323,7 +323,7 @@ def stats():
             {
                 'source': r['source'],
                 'status': r['status'],
-                'last_run_at': r['last_run_at'].isoformat() if r['last_run_at'] else None,
+                'last_run_at': r['last_run_at'].isoformat() + 'Z' if r['last_run_at'] else None,
             }
             for r in cur.fetchall()
         ]
@@ -466,7 +466,7 @@ def semantic_query(req: SemanticQueryRequest):
         results = [dict(r) for r in cur.fetchall()]
         for r in results:
             if r.get('published_at'):
-                r['published_at'] = r['published_at'].isoformat()
+                r['published_at'] = r['published_at'].isoformat() + 'Z'
             for k, v in r.items():
                 if isinstance(v, Decimal):
                     r[k] = float(v)
@@ -568,7 +568,7 @@ def query_history(
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows:
             if r.get('created_at'):
-                r['created_at'] = r['created_at'].isoformat()
+                r['created_at'] = r['created_at'].isoformat() + 'Z'
         cur.execute("SELECT COUNT(*) as total FROM query_history")
         total = cur.fetchone()['total']
         return {
@@ -594,7 +594,7 @@ def query_history_detail(query_id: str):
             raise HTTPException(status_code=404, detail='Query not found')
         r = dict(row)
         if r.get('created_at'):
-            r['created_at'] = r['created_at'].isoformat()
+            r['created_at'] = r['created_at'].isoformat() + 'Z'
         # Resolve Slack user IDs in snapshot
         if r.get('results_snapshot'):
             snapshot = r['results_snapshot'] if isinstance(r['results_snapshot'], list) else []
@@ -680,9 +680,9 @@ def mentions(
         for r in cur.fetchall():
             row = dict(r)
             if row.get('published_at'):
-                row['published_at'] = row['published_at'].isoformat()
+                row['published_at'] = row['published_at'].isoformat() + 'Z'
             if row.get('ingested_at'):
-                row['ingested_at'] = row['ingested_at'].isoformat()
+                row['ingested_at'] = row['ingested_at'].isoformat() + 'Z'
             if row.get('platform') == 'slack':
                 row['author'] = resolve_slack_author(row.get('author', ''))
             for k, v in row.items():
@@ -766,11 +766,11 @@ def popular_posts(
         for r in cur.fetchall():
             row = dict(r)
             if row.get('published_at'):
-                row['published_at'] = row['published_at'].isoformat()
+                row['published_at'] = row['published_at'].isoformat() + 'Z'
             if row.get('ingested_at'):
-                row['ingested_at'] = row['ingested_at'].isoformat()
+                row['ingested_at'] = row['ingested_at'].isoformat() + 'Z'
             if row.get('flagged_at'):
-                row['flagged_at'] = row['flagged_at'].isoformat()
+                row['flagged_at'] = row['flagged_at'].isoformat() + 'Z'
             if row.get('platform') == 'slack':
                 row['author'] = resolve_slack_author(row.get('author', ''))
             for k, v in row.items():
@@ -804,7 +804,7 @@ def projects():
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows:
             if r.get('published_at'):
-                r['published_at'] = r['published_at'].isoformat()
+                r['published_at'] = r['published_at'].isoformat() + 'Z'
         return {'projects': rows}
     finally:
         cur.close()
@@ -823,7 +823,7 @@ def project_history(name: str, limit: int = Query(20)):
         rows = [dict(r) for r in cur.fetchall()]
         for r in rows:
             if r.get('published_at'):
-                r['published_at'] = r['published_at'].isoformat()
+                r['published_at'] = r['published_at'].isoformat() + 'Z'
         return {'project': name, 'history': rows}
     finally:
         cur.close()
