@@ -43,8 +43,8 @@ function PopularCard({ post, index = 0 }: { post: PopularPost; index?: number })
 
   return (
     <div
-      className="animate-card group relative bg-[#121212] border border-[#2B2B2B] p-4 hover:border-[rgba(192,158,90,0.25)] hover:bg-[#151515] transition-all duration-200" style={{ borderRadius: "4px" }}
-      style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}
+      className="animate-card group relative bg-[#121212] border border-[#2B2B2B] p-4 hover:border-[rgba(192,158,90,0.25)] hover:bg-[#151515] transition-all duration-200"
+      style={{ borderRadius: "4px", animationDelay: `${Math.min(index * 35, 350)}ms` }}
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-3">
