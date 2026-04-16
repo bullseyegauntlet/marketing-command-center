@@ -67,32 +67,86 @@ function RecentHistory({ onSelect }: { onSelect: (q: string) => void }) {
   );
 }
 
-function useNextDataPull() {
-  const getSecondsUntilNext = () => {
-    const now = new Date();
-    // Jobs run at every even UTC hour (0,2,4,6,8,10,12,14,16,18,20,22)
-    // Next even hour = ceil current hour to next even number
-    const nowHour = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
-    const nextHour = Math.ceil(nowHour / 2) * 2;
-    const nextRun = new Date(now);
-    nextRun.setUTCHours(nextHour % 24, 0, 0, 0);
-    if (nextHour >= 24) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
-    return Math.max(0, Math.floor((nextRun.getTime() - now.getTime()) / 1000));
-  };
-
-  const [secs, setSecs] = useState(getSecondsUntilNext);
-
-  useEffect(() => {
-    const id = setInterval(() => setSecs(getSecondsUntilNext()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
+function fmtCountdown(secs: number) {
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   const s = secs % 60;
   return h > 0
     ? `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`
     : `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
+function useCountdown(getNextMs: () => number) {
+  const getSecs = () => Math.max(0, Math.floor((getNextMs() - Date.now()) / 1000));
+  const [secs, setSecs] = useState(getSecs);
+  useEffect(() => {
+    const id = setInterval(() => setSecs(getSecs()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return fmtCountdown(secs);
+}
+
+// X mentions: every 2h at 0,2,4,6,8,10,12,14,16,18,20,22 UTC
+function nextEvenUTCHour() {
+  const now = new Date();
+  const nowHour = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+  const nextHour = Math.ceil(nowHour / 2) * 2;
+  const next = new Date(now);
+  next.setUTCHours(nextHour % 24, 0, 0, 0);
+  if (nextHour >= 24) next.setUTCDate(next.getUTCDate() + 1);
+  return next.getTime();
+}
+
+// Engagement recheck + Reddit/LinkedIn daily: every 4h at 0,4,8,12,16,20 UTC
+function next4hUTCHour() {
+  const now = new Date();
+  const nowHour = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+  const nextHour = Math.ceil(nowHour / 4) * 4;
+  const next = new Date(now);
+  next.setUTCHours(nextHour % 24, 0, 0, 0);
+  if (nextHour >= 24) next.setUTCDate(next.getUTCDate() + 1);
+  return next.getTime();
+}
+
+// Reddit + LinkedIn: daily at 08:00 UTC
+function nextDailyUTCHour(hour: number) {
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCHours(hour, 0, 0, 0);
+  if (next.getTime() <= now.getTime()) next.setUTCDate(next.getUTCDate() + 1);
+  return next.getTime();
+}
+
+function MentionsCountdowns() {
+  const xCountdown       = useCountdown(nextEvenUTCHour);
+  const linkedinCountdown = useCountdown(() => nextDailyUTCHour(8));
+  const redditCountdown  = useCountdown(() => nextDailyUTCHour(8));
+  return (
+    <div className="ml-auto flex items-center gap-4 pb-px pr-1">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-[rgba(255,255,255,0.35)] font-medium">𝕏</span>
+        <span className="text-[11px] font-mono font-bold text-[#C09E5A] tabular-nums">{xCountdown}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-[rgba(255,255,255,0.35)] font-medium">LinkedIn</span>
+        <span className="text-[11px] font-mono font-bold text-[#C09E5A] tabular-nums">{linkedinCountdown}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-[rgba(255,255,255,0.35)] font-medium">Reddit</span>
+        <span className="text-[11px] font-mono font-bold text-[#C09E5A] tabular-nums">{redditCountdown}</span>
+      </div>
+    </div>
+  );
+}
+
+function PopularCountdown() {
+  const countdown = useCountdown(next4hUTCHour);
+  return (
+    <div className="ml-auto flex items-center gap-2 pb-px pr-1">
+      <span className="text-[11px] text-[rgba(255,255,255,0.45)] tracking-wide font-medium">Next Engagement Recheck</span>
+      <span className="text-[11px] font-mono font-bold text-[#C09E5A] tabular-nums">{countdown}</span>
+    </div>
+  );
 }
 
 function TabBar({
@@ -106,8 +160,6 @@ function TabBar({
   mentionsBadge: number;
   popularBadge: number;
 }) {
-  const countdown = useNextDataPull();
-
   const tabs: { id: ActiveTab; label: string; badge?: number }[] = [
     { id: "search",   label: "Search" },
     { id: "mentions", label: "@Mentions", badge: mentionsBadge },
@@ -135,10 +187,8 @@ function TabBar({
           )}
         </button>
       ))}
-      <div className="ml-auto flex items-center gap-2 pb-px pr-1">
-        <span className="text-[11px] text-[rgba(255,255,255,0.45)] tracking-wide font-medium">Next Data Pull</span>
-        <span className="text-[11px] font-mono font-bold text-[#C09E5A] tabular-nums">{countdown}</span>
-      </div>
+      {activeTab === "mentions" && <MentionsCountdowns />}
+      {activeTab === "popular"  && <PopularCountdown />}
     </div>
   );
 }
