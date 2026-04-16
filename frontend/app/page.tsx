@@ -134,9 +134,9 @@ function TabBar({
           )}
         </button>
       ))}
-      <div className="ml-auto flex items-center gap-1.5 pb-px pr-1">
-        <span className="text-[10px] text-[rgba(255,255,255,0.3)] tracking-wide">next data pull</span>
-        <span className="text-[10px] font-mono font-semibold text-[rgba(255,255,255,0.55)] tabular-nums">{countdown}</span>
+      <div className="ml-auto flex items-center gap-2 pb-px pr-1">
+        <span className="text-[11px] text-[rgba(255,255,255,0.45)] tracking-wide font-medium">Next Data Pull</span>
+        <span className="text-[11px] font-mono font-bold text-[#C09E5A] tabular-nums">{countdown}</span>
       </div>
     </div>
   );
