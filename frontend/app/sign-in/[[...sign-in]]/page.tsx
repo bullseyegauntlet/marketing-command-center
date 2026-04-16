@@ -6,6 +6,20 @@ import { dark } from "@clerk/themes";
 export default function SignInPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#080808]">
+      {/* Hide all email/password elements — Google OAuth only */}
+      <style>{`
+        .cl-formFieldRow__identifier,
+        .cl-formFieldRow__password,
+        .cl-formButtonPrimary,
+        .cl-dividerRow,
+        .cl-footerAction,
+        .cl-footer,
+        .cl-identityPreview ~ div,
+        [data-localization-key="signIn.start.actionLink"],
+        .cl-internal-b3fm6y {
+          display: none !important;
+        }
+      `}</style>
       <div className="flex flex-col items-center gap-8">
         <div className="text-center">
           <p className="text-[10px] font-semibold text-[#C09E5A] tracking-widest uppercase mb-2">
@@ -44,25 +58,16 @@ export default function SignInPage() {
               headerTitle: "!text-white font-bold",
               headerSubtitle: "!text-[rgba(255,255,255,0.5)]",
               bodyText: "!text-white",
-              formButtonPrimary: "bg-[#C09E5A] hover:bg-[#B8914F] !text-[#080808] font-semibold",
               formFieldInput: "bg-[#1a1a1a] border-[#2B2B2B] !text-white focus:border-[#C09E5A]",
               formFieldLabel: "!text-[rgba(255,255,255,0.6)] text-xs",
-              formFieldInputShowPasswordButton: "!text-[rgba(255,255,255,0.5)]",
               dividerLine: "bg-[#2B2B2B]",
               dividerText: "!text-[rgba(255,255,255,0.35)]",
               footerActionText: "!text-[rgba(255,255,255,0.5)]",
               footerActionLink: "!text-[#C09E5A] hover:!text-[#D4B575]",
               identityPreviewText: "!text-[rgba(255,255,255,0.7)]",
               identityPreviewEditButton: "!text-[#C09E5A]",
-              alternativeMethodsBlockButton: "!text-white border-[#2B2B2B] hover:bg-[rgba(255,255,255,0.04)]",
               socialButtonsBlockButton: "border-[#2B2B2B] !text-white hover:bg-[rgba(255,255,255,0.04)]",
               socialButtonsBlockButtonText: "!text-white",
-              // Hide email/password fields — Google OAuth only
-              dividerRow: "hidden",
-              formFieldRow__identifier: "hidden",
-              formFieldRow__password: "hidden",
-              formButtonPrimary__signIn: "hidden",
-              footerAction: "hidden",
             },
           }}
         />
