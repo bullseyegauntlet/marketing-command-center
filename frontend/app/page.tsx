@@ -307,12 +307,14 @@ export default function QueryPage() {
           {!loading && !hasResults && !error && (
             <div className="mt-10 border-t border-[#1e1e1e] pt-8">
               <p className="text-[10px] text-[rgba(255,255,255,0.2)] uppercase tracking-widest mb-4">Try asking</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {[
-                  "What are people saying about Claude Code this week?",
-                  "Latest Slack discussions on hiring AI engineers",
-                  "What's trending in r/MachineLearning recently?",
-                  "Community sentiment about Gauntlet AI",
+                  "What is the community saying about Gauntlet AI this week?",
+                  "Latest Slack discussions on AI agents and MCP",
+                  "What are people saying about Claude Code on Reddit recently?",
+                  "How are people building with AI in the last 30 days?",
+                  "What's the sentiment around AI engineering bootcamps?",
+                  "Top discussions about RAG and fine-tuning this month",
                 ].map((suggestion) => (
                   <button
                     key={suggestion}
