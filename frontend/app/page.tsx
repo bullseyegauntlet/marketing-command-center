@@ -70,10 +70,11 @@ function RecentHistory({ onSelect }: { onSelect: (q: string) => void }) {
 function useNextDataPull() {
   const getSecondsUntilNext = () => {
     const now = new Date();
-    // Crons run at 0, 4, 8, 12, 16, 20 UTC (every 4h)
+    // Jobs run at every even UTC hour (0,2,4,6,8,10,12,14,16,18,20,22)
+    // Next even hour = ceil current hour to next even number
+    const nowHour = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+    const nextHour = Math.ceil(nowHour / 2) * 2;
     const nextRun = new Date(now);
-    const h = now.getUTCHours();
-    const nextHour = Math.ceil((h + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600) / 4) * 4;
     nextRun.setUTCHours(nextHour % 24, 0, 0, 0);
     if (nextHour >= 24) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
     return Math.max(0, Math.floor((nextRun.getTime() - now.getTime()) / 1000));
