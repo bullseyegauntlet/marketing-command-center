@@ -305,27 +305,8 @@ export default function QueryPage() {
 
           {/* Empty state */}
           {!loading && !hasResults && !error && (
-            <div className="mt-10 border-t border-[#1e1e1e] pt-8">
-              <p className="text-[10px] text-[rgba(255,255,255,0.2)] uppercase tracking-widest mb-4">Try asking</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {[
-                  "What is the community saying about Gauntlet AI this week?",
-                  "Latest Slack discussions on AI agents and MCP",
-                  "What are people saying about Claude Code on Reddit recently?",
-                  "How are people building with AI in the last 30 days?",
-                  "What's the sentiment around AI engineering bootcamps?",
-                  "Top discussions about RAG and fine-tuning this month",
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => { setQuery(suggestion); runQuery(suggestion); }}
-                    className="text-left px-3 py-2.5 text-xs text-[rgba(255,255,255,0.4)] border border-[#2B2B2B] hover:border-[rgba(192,158,90,0.3)] hover:text-[rgba(255,255,255,0.65)] hover:bg-[rgba(192,158,90,0.04)] transition-all duration-150"
-                    style={{ borderRadius: "4px" }}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+            <div className="mt-10 border-t border-[#1e1e1e] pt-8 text-center">
+              <p className="text-xs text-[rgba(255,255,255,0.2)]">Type a question above to search across Slack, X, Reddit, and LinkedIn</p>
             </div>
           )}
         </div>
