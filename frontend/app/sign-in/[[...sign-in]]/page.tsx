@@ -22,6 +22,10 @@ export default function SignInPage() {
         <SignIn
           appearance={{
             baseTheme: dark,
+            layout: {
+              socialButtonsVariant: "blockButton",
+              socialButtonsPlacement: "top",
+            },
             variables: {
               colorBackground: "#121212",
               colorInputBackground: "#1a1a1a",
@@ -53,6 +57,12 @@ export default function SignInPage() {
               alternativeMethodsBlockButton: "!text-white border-[#2B2B2B] hover:bg-[rgba(255,255,255,0.04)]",
               socialButtonsBlockButton: "border-[#2B2B2B] !text-white hover:bg-[rgba(255,255,255,0.04)]",
               socialButtonsBlockButtonText: "!text-white",
+              // Hide email/password fields — Google OAuth only
+              dividerRow: "hidden",
+              formFieldRow__identifier: "hidden",
+              formFieldRow__password: "hidden",
+              formButtonPrimary__signIn: "hidden",
+              footerAction: "hidden",
             },
           }}
         />
