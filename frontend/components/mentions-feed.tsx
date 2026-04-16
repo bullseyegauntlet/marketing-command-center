@@ -45,8 +45,8 @@ export function MentionsFeed() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-foreground">@Mentions</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-xl font-bold text-white">@Mentions</h2>
+        <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">
           People talking about Gauntlet AI
         </p>
       </div>
@@ -54,16 +54,16 @@ export function MentionsFeed() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Platform filter */}
-        <div className="flex items-center bg-white border border-border rounded-xl p.0.5 text-xs font-medium shadow-sm">
+        <div className="flex items-center bg-[#1a1a1a] border border-[#2B2B2B] text-xs font-medium p-0.5">
           {(["all", "x", "reddit", "linkedin"] as Platform[]).map((p) => (
             <button
               key={p}
               onClick={() => setPlatform(p)}
               className={cn(
-                "px-3 py-1.5 rounded-lg transition-all duration-150",
+                "px-3 py-1.5 transition-all duration-150",
                 platform === p
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[#C09E5A] text-[#080808] font-semibold"
+                  : "text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.8)]"
               )}
             >
               {p === "all" ? "All" : p === "x" ? "X" : p === "reddit" ? "Reddit" : "LinkedIn"}
@@ -72,17 +72,17 @@ export function MentionsFeed() {
         </div>
 
         {/* Time range filter */}
-        <div className="flex items-center bg-white border border-border rounded-xl p.0.5 text-xs font-medium shadow-sm">
+        <div className="flex items-center bg-[#1a1a1a] border border-[#2B2B2B] text-xs font-medium p-0.5">
           {([["1", "24h"], ["7", "7d"], ["30", "30d"]] as [TimeRange, string][]).map(
             ([val, label]) => (
               <button
                 key={val}
                 onClick={() => setTimeRange(val)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg transition-all duration-150",
+                  "px-3 py-1.5 transition-all duration-150",
                   timeRange === val
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-[#C09E5A] text-[#080808] font-semibold"
+                    : "text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.8)]"
                 )}
               >
                 {label}
@@ -142,14 +142,14 @@ export function MentionsFeed() {
       {/* Empty state */}
       {!loading && posts.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-2xl">
+          <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center text-2xl">
             📡
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">
               No mentions found in the last {timeRange === "1" ? "24 hours" : `${timeRange} days`}.
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-[rgba(255,255,255,0.3)] mt-1">
               Try expanding the time range.
             </p>
           </div>

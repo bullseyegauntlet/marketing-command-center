@@ -17,38 +17,38 @@ export function StatsBar() {
     .sort((a, b) => new Date(b.last_run_at).getTime() - new Date(a.last_run_at).getTime())[0];
 
   return (
-    <div className="bg-white/60 backdrop-blur-sm border-b border-border/60">
+    <div className="border-b border-[#1e1e1e] bg-[#0c0c0c]">
       <div className="container mx-auto px-6 max-w-5xl">
-        <div className="flex items-center gap-3 h-8 overflow-x-auto">
+        <div className="flex items-center gap-4 h-8 overflow-x-auto">
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-300" />
-            <span className="text-[11px] text-emerald-600 font-semibold tracking-wide uppercase">Live</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] text-emerald-500 font-semibold tracking-widest uppercase">Live</span>
           </div>
-          <div className="w-px h-3 bg-border shrink-0" />
-          <span className="text-[11px] text-muted-foreground shrink-0">
-            <span className="font-semibold text-foreground">{stats.total_posts.toLocaleString()}</span> posts
+          <span className="text-[#2B2B2B]">|</span>
+          <span className="text-[10px] text-[rgba(255,255,255,0.3)] shrink-0">
+            <span className="text-[rgba(255,255,255,0.6)] font-medium">{stats.total_posts.toLocaleString()}</span> posts indexed
           </span>
           {stats.posts_by_platform?.slack > 0 && (
             <>
-              <div className="w-px h-3 bg-border shrink-0" />
-              <span className="text-[11px] text-muted-foreground shrink-0">
-                <span className="font-semibold text-foreground">{stats.posts_by_platform.slack.toLocaleString()}</span> Slack
+              <span className="text-[#2B2B2B]">·</span>
+              <span className="text-[10px] text-[rgba(255,255,255,0.3)] shrink-0">
+                <span className="text-[rgba(255,255,255,0.6)] font-medium">{stats.posts_by_platform.slack.toLocaleString()}</span> Slack
               </span>
             </>
           )}
           {stats.posts_by_platform?.x > 0 && (
             <>
-              <div className="w-px h-3 bg-border shrink-0" />
-              <span className="text-[11px] text-muted-foreground shrink-0">
-                <span className="font-semibold text-foreground">{stats.posts_by_platform.x.toLocaleString()}</span> X
+              <span className="text-[#2B2B2B]">·</span>
+              <span className="text-[10px] text-[rgba(255,255,255,0.3)] shrink-0">
+                <span className="text-[rgba(255,255,255,0.6)] font-medium">{stats.posts_by_platform.x.toLocaleString()}</span> X
               </span>
             </>
           )}
           {lastRun && (
             <>
-              <div className="w-px h-3 bg-border shrink-0" />
-              <span className="text-[11px] text-muted-foreground shrink-0">
-                Updated <span className="font-semibold text-foreground">{formatRelativeTime(lastRun.last_run_at)}</span>
+              <span className="text-[#2B2B2B]">·</span>
+              <span className="text-[10px] text-[rgba(255,255,255,0.3)] shrink-0">
+                Updated <span className="text-[rgba(255,255,255,0.6)] font-medium">{formatRelativeTime(lastRun.last_run_at)}</span>
               </span>
             </>
           )}

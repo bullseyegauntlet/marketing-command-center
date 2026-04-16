@@ -43,7 +43,7 @@ function PopularCard({ post, index = 0 }: { post: PopularPost; index?: number })
 
   return (
     <div
-      className="animate-card group relative bg-white border border-border rounded-2xl p-4 hover:border-amber-300/60 hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200"
+      className="animate-card group relative bg-[#121212] border border-[#2B2B2B] p-4 hover:border-[rgba(192,158,90,0.25)] hover:bg-[#151515] transition-all duration-200" style={{ borderRadius: "4px" }}
       style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}
     >
       {/* Header */}
@@ -150,8 +150,8 @@ export function PopularFeed() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl font-semibold text-foreground">Popular Posts</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h2 className="text-xl font-bold text-white">Popular Posts</h2>
+        <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">
           High-engagement content from X and Slack
         </p>
       </div>
@@ -165,10 +165,10 @@ export function PopularFeed() {
               key={p}
               onClick={() => setPlatform(p)}
               className={cn(
-                "px-3 py-1.5 rounded-lg transition-all duration-150",
+                "px-3 py-1.5 transition-all duration-150",
                 platform === p
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[#C09E5A] text-[#080808] font-semibold"
+                  : "text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.8)]"
               )}
             >
               {p === "all" ? "All" : p === "x" ? "X" : "Slack"}
@@ -184,10 +184,10 @@ export function PopularFeed() {
                 key={val}
                 onClick={() => setTimeRange(val)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg transition-all duration-150",
+                  "px-3 py-1.5 transition-all duration-150",
                   timeRange === val
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-[#C09E5A] text-[#080808] font-semibold"
+                    : "text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.8)]"
                 )}
               >
                 {label}

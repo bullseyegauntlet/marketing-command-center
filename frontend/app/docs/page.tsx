@@ -16,17 +16,17 @@ const sections: { id: Section; label: string; emoji: string }[] = [
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0">
-      <span className="text-xs text-muted-foreground w-36 shrink-0 pt-0.5">{label}</span>
-      <span className="text-sm text-foreground flex-1">{value}</span>
+    <div className="flex items-start gap-3 py-2.5 border-b border-[#1e1e1e] last:border-0">
+      <span className="text-xs text-[rgba(255,255,255,0.35)] w-36 shrink-0 pt-0.5">{label}</span>
+      <span className="text-sm text-[rgba(255,255,255,0.7)] flex-1">{value}</span>
     </div>
   );
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-white p-5 space-y-1">
-      <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
+    <div className="border border-[#2B2B2B] bg-[#121212] p-5 space-y-1">
+      <h3 className="text-sm font-semibold text-[rgba(255,255,255,0.85)] mb-3">{title}</h3>
       {children}
     </div>
   );
@@ -47,8 +47,8 @@ export default function DocsPage() {
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left",
                 active === s.id
-                  ? "bg-accent text-primary font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  ? "bg-[rgba(192,158,90,0.1)] text-[#C09E5A] font-medium"
+                  : "text-[rgba(255,255,255,0.35)] hover:text-[rgba(255,255,255,0.8)] hover:bg-[rgba(255,255,255,0.04)]"
               )}
             >
               <span>{s.emoji}</span>
@@ -65,8 +65,8 @@ export default function DocsPage() {
         {active === "overview" && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Marketing Command Center</h1>
-              <p className="text-sm text-muted-foreground mt-1">A real-time intelligence dashboard for Gauntlet AI marketing & sales</p>
+              <h1 className="text-2xl font-bold text-white">Marketing Command Center</h1>
+              <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">A real-time intelligence dashboard for Gauntlet AI marketing & sales</p>
             </div>
             <Card title="What it does">
               <Row label="Search" value="Semantic search across all ingested Slack, X, and Reddit content with AI-generated summaries" />
@@ -99,8 +99,8 @@ export default function DocsPage() {
         {active === "search" && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Search</h1>
-              <p className="text-sm text-muted-foreground mt-1">Ask anything about your Slack channels, X posts, and Reddit threads</p>
+              <h1 className="text-2xl font-bold text-white">Search</h1>
+              <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">Ask anything about your Slack channels, X posts, and Reddit threads</p>
             </div>
             <Card title="How it works">
               <Row label="Query" value="Natural language — ask questions, use platform names, reference time ranges" />
@@ -116,8 +116,8 @@ export default function DocsPage() {
         {active === "mentions" && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">@Mentions</h1>
-              <p className="text-sm text-muted-foreground mt-1">People talking about Gauntlet AI across X, Reddit, and LinkedIn</p>
+              <h1 className="text-2xl font-bold text-white">@Mentions</h1>
+              <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">People talking about Gauntlet AI across X, Reddit, and LinkedIn</p>
             </div>
             <Card title="How it works">
               <Row label="X" value='Brand mention search runs daily — finds posts matching "Gauntlet AI", @GauntletAI, or gauntletai. Retweets excluded.' />
@@ -133,8 +133,8 @@ export default function DocsPage() {
         {active === "popular" && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">🔥 Popular</h1>
-              <p className="text-sm text-muted-foreground mt-1">High-engagement original posts, automatically flagged</p>
+              <h1 className="text-2xl font-bold text-white">🔥 Popular</h1>
+              <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">High-engagement original posts, automatically flagged</p>
             </div>
             <Card title="How it works">
               <Row label="Detection" value="Posts are checked at ingestion and again every 4 hours. Any post that crosses a threshold is flagged permanently." />
@@ -166,8 +166,8 @@ export default function DocsPage() {
         {active === "ingestion" && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Ingestion</h1>
-              <p className="text-sm text-muted-foreground mt-1">How content gets into the database</p>
+              <h1 className="text-2xl font-bold text-white">Ingestion</h1>
+              <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">How content gets into the database</p>
             </div>
             <Card title="X (Twitter)">
               <Row label="Source" value="Gauntlet graduates list — fetches new tweets since last run" />
@@ -201,28 +201,28 @@ export default function DocsPage() {
         {active === "accounts" && (
           <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-semibold text-foreground">Platform Accounts</h1>
-              <p className="text-sm text-muted-foreground mt-1">Bullseye's accounts across each platform</p>
+              <h1 className="text-2xl font-bold text-white">Platform Accounts</h1>
+              <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">Bullseye's accounts across each platform</p>
             </div>
             <Card title="X (Twitter)">
-              <Row label="Account" value={<a href="https://x.com/bullseye_g4" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@bullseye_g4</a>} />
-              <Row label="Also tracking" value={<a href="https://x.com/gauntletai" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">@gauntletai</a>} />
+              <Row label="Account" value={<a href="https://x.com/bullseye_g4" target="_blank" rel="noopener noreferrer" className="text-[#C09E5A] hover:text-[#D4B575] underline">@bullseye_g4</a>} />
+              <Row label="Also tracking" value={<a href="https://x.com/gauntletai" target="_blank" rel="noopener noreferrer" className="text-[#C09E5A] hover:text-[#D4B575] underline">@gauntletai</a>} />
             </Card>
             <Card title="Slack">
               <Row label="Bot name" value="Bullseye" />
               <Row label="Alert channel" value="#bullseye_comms" />
             </Card>
             <Card title="Reddit">
-              <Row label="Account" value={<a href="https://www.reddit.com/user/Bullseye_Gauntlet/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">u/Bullseye_Gauntlet</a>} />
+              <Row label="Account" value={<a href="https://www.reddit.com/user/Bullseye_Gauntlet/" target="_blank" rel="noopener noreferrer" className="text-[#C09E5A] hover:text-[#D4B575] underline">u/Bullseye_Gauntlet</a>} />
             </Card>
             <Card title="LinkedIn">
-              <Row label="Account" value={<a href="https://linkedin.com/in/bullseye-undefined-290927403/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Bullseye</a>} />
+              <Row label="Account" value={<a href="https://linkedin.com/in/bullseye-undefined-290927403/" target="_blank" rel="noopener noreferrer" className="text-[#C09E5A] hover:text-[#D4B575] underline">Bullseye</a>} />
             </Card>
             <Card title="Google / Gmail">
-              <Row label="Account" value={<a href="mailto:bullseye.gauntlet@gmail.com" className="text-primary hover:underline">bullseye.gauntlet@gmail.com</a>} />
+              <Row label="Account" value={<a href="mailto:bullseye.gauntlet@gmail.com" className="text-[#C09E5A] hover:text-[#D4B575] underline">bullseye.gauntlet@gmail.com</a>} />
             </Card>
             <Card title="GitHub">
-              <Row label="Account" value={<a href="https://github.com/bullseyegauntlet" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">bullseyegauntlet</a>} />
+              <Row label="Account" value={<a href="https://github.com/bullseyegauntlet" target="_blank" rel="noopener noreferrer" className="text-[#C09E5A] hover:text-[#D4B575] underline">bullseyegauntlet</a>} />
             </Card>
           </div>
         )}

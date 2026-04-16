@@ -20,16 +20,11 @@ type ActiveTab = "search" | "mentions" | "popular";
 
 function SummaryBox({ summary }: { summary: string }) {
   return (
-    <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-accent to-white p-4 mb-5">
+    <div className="border border-[rgba(192,158,90,0.2)] bg-[rgba(192,158,90,0.05)] p-4 mb-5" style={{ borderRadius: "4px" }}>
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-          <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-          </svg>
-        </div>
-        <span className="text-xs font-semibold text-primary uppercase tracking-widest">AI Summary</span>
+        <span className="text-[10px] font-semibold text-[#C09E5A] uppercase tracking-widest">AI Summary</span>
       </div>
-      <p className="text-sm text-foreground/90 leading-relaxed">{summary}</p>
+      <p className="text-sm text-[rgba(255,255,255,0.75)] leading-relaxed">{summary}</p>
     </div>
   );
 }
@@ -45,25 +40,24 @@ function RecentHistory({ onSelect }: { onSelect: (q: string) => void }) {
 
   return (
     <div className="mt-8">
-      <p className="text-[11px] font-semibold text-muted-foreground mb-2 uppercase tracking-widest px-1">
+      <p className="text-[10px] font-semibold text-[rgba(255,255,255,0.25)] mb-2 uppercase tracking-widest px-1">
         Recent
       </p>
-      <div className="space-y-0.5">
+      <div className="space-y-px">
         {items.map((entry) => (
           <button
             key={entry.id}
             onClick={() => onSelect(entry.query_text)}
-            className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-white hover:shadow-sm border border-transparent hover:border-border text-left transition-all duration-150 group"
+            className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left transition-all duration-150 group hover:bg-[rgba(255,255,255,0.03)] border border-transparent hover:border-[#2B2B2B]"
+            style={{ borderRadius: "4px" }}
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path d="M12 6v6l4 2M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
-              </svg>
-              <span className="text-sm text-foreground/80 truncate group-hover:text-primary transition-colors">
+              <span className="text-[rgba(255,255,255,0.2)] text-xs shrink-0">→</span>
+              <span className="text-sm text-[rgba(255,255,255,0.45)] truncate group-hover:text-[rgba(255,255,255,0.7)] transition-colors">
                 {entry.query_text}
               </span>
             </div>
-            <span className="text-[11px] text-muted-foreground shrink-0">
+            <span className="text-[10px] text-[rgba(255,255,255,0.2)] shrink-0 tabular-nums">
               {formatRelativeTime(entry.created_at)}
             </span>
           </button>
@@ -85,30 +79,27 @@ function TabBar({
   popularBadge: number;
 }) {
   const tabs: { id: ActiveTab; label: string; badge?: number }[] = [
-    { id: "search", label: "Search" },
+    { id: "search",   label: "Search" },
     { id: "mentions", label: "@Mentions", badge: mentionsBadge },
-    { id: "popular", label: "🔥 Popular", badge: popularBadge },
+    { id: "popular",  label: "🔥 Popular",  badge: popularBadge },
   ];
 
   return (
-    <div className="flex items-center gap-1 mb-7 bg-white border border-border rounded-2xl p-1 shadow-sm">
+    <div className="flex items-center gap-0 mb-8 border-b border-[#2B2B2B]">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => setActiveTab(tab.id)}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200",
+            "flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all duration-150 border-b-2 -mb-px",
             activeTab === tab.id
-              ? "bg-primary text-white shadow-sm shadow-primary/30"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              ? "text-[#C09E5A] border-[#C09E5A]"
+              : "text-[rgba(255,255,255,0.4)] border-transparent hover:text-[rgba(255,255,255,0.7)] hover:border-[rgba(255,255,255,0.15)]"
           )}
         >
           {tab.label}
           {tab.badge !== undefined && tab.badge > 0 && (
-            <span className={cn(
-              "inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold leading-none",
-              activeTab === tab.id ? "bg-white/25 text-white" : "bg-primary text-white"
-            )}>
+            <span className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold bg-[#C09E5A] text-[#080808]" style={{ borderRadius: "2px" }}>
               {tab.badge > 9 ? "9+" : tab.badge}
             </span>
           )}
@@ -121,15 +112,15 @@ function TabBar({
 function CardSkeleton({ index = 0 }: { index?: number }) {
   return (
     <div
-      className="animate-card bg-white border border-border rounded-2xl p-4 space-y-3"
-      style={{ animationDelay: `${index * 60}ms` }}
+      className="animate-card border border-[#2B2B2B] p-4 space-y-3"
+      style={{ borderRadius: "4px", animationDelay: `${index * 60}ms` }}
     >
       <div className="flex items-center gap-2">
-        <div className="skeleton-shimmer h-5 w-14 rounded-full" />
-        <div className="skeleton-shimmer h-4 w-28 rounded-lg" />
+        <div className="skeleton-shimmer h-4 w-14" style={{ borderRadius: "2px" }} />
+        <div className="skeleton-shimmer h-3 w-28" style={{ borderRadius: "2px" }} />
       </div>
-      <div className="skeleton-shimmer h-3 w-full rounded-lg" />
-      <div className="skeleton-shimmer h-3 w-3/4 rounded-lg" />
+      <div className="skeleton-shimmer h-3 w-full" style={{ borderRadius: "2px" }} />
+      <div className="skeleton-shimmer h-3 w-3/4" style={{ borderRadius: "2px" }} />
     </div>
   );
 }
@@ -147,7 +138,7 @@ export default function QueryPage() {
   }, []);
 
   const mentionsBadge = activeTab === "mentions" ? 0 : (stats?.mentions?.last_24h ?? 0);
-  const popularBadge = activeTab === "popular" ? 0 : (stats?.popular?.last_24h ?? 0);
+  const popularBadge  = activeTab === "popular"  ? 0 : (stats?.popular?.last_24h  ?? 0);
 
   async function runQuery(q: string) {
     if (!q.trim()) return;
@@ -176,11 +167,6 @@ export default function QueryPage() {
     }
   }
 
-  function handleHistorySelect(q: string) {
-    setQuery(q);
-    runQuery(q);
-  }
-
   const hasResults = result !== null;
 
   return (
@@ -193,28 +179,31 @@ export default function QueryPage() {
       />
 
       {activeTab === "mentions" && <MentionsFeed />}
-      {activeTab === "popular" && <PopularFeed />}
+      {activeTab === "popular"  && <PopularFeed />}
 
       {activeTab === "search" && (
-        <div className="space-y-6">
-          {/* Search area */}
-          <div className={hasResults ? "" : "pt-8"}>
+        <div className="space-y-7">
+          {/* Hero / search */}
+          <div className={hasResults ? "" : "pt-6"}>
             {!hasResults && (
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-foreground mb-2 tracking-tight">
-                  Marketing Intelligence
+              <div className="mb-8">
+                <p className="text-[10px] font-semibold text-[#C09E5A] tracking-widest uppercase mb-3">
+                  Intelligence Console
+                </p>
+                <h1 className="text-4xl font-bold text-white mb-3 leading-tight" style={{ fontFamily: "var(--font-space-grotesk), sans-serif", letterSpacing: "-0.02em" }}>
+                  What's the signal<br />
+                  <span className="text-[rgba(255,255,255,0.4)]">in the noise?</span>
                 </h1>
-                <p className="text-muted-foreground text-base">
-                  Ask anything across Slack, X, and Reddit
+                <p className="text-sm text-[rgba(255,255,255,0.4)] max-w-md">
+                  Ask anything across Slack, X, Reddit, and LinkedIn
                 </p>
               </div>
             )}
 
             <form onSubmit={handleSubmit}>
-              <div className="search-glow relative flex items-center bg-white border border-border rounded-2xl px-5 py-3.5 transition-all duration-200">
-                <svg className="w-4 h-4 text-muted-foreground shrink-0 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" />
+              <div className="search-glow relative flex items-center bg-[#121212] border border-[#2B2B2B] px-5 py-3.5 transition-all duration-200" style={{ borderRadius: "4px" }}>
+                <svg className="w-4 h-4 text-[rgba(255,255,255,0.25)] shrink-0 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
                 </svg>
                 <textarea
                   value={query}
@@ -222,7 +211,7 @@ export default function QueryPage() {
                   onKeyDown={handleKeyDown}
                   placeholder="Ask anything about your marketing channels…"
                   rows={1}
-                  className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/70 resize-none focus:outline-none leading-6"
+                  className="flex-1 bg-transparent text-sm text-[rgba(255,255,255,0.85)] placeholder:text-[rgba(255,255,255,0.2)] resize-none focus:outline-none leading-6"
                   style={{ minHeight: "24px", maxHeight: "120px" }}
                   onInput={(e) => {
                     const el = e.currentTarget;
@@ -233,7 +222,12 @@ export default function QueryPage() {
                 <button
                   type="submit"
                   disabled={loading || !query.trim()}
-                  className="ml-3 shrink-0 px-5 py-2 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 shadow-sm shadow-primary/20"
+                  className="ml-3 shrink-0 px-5 py-2 text-sm font-semibold transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed active:scale-95"
+                  style={{
+                    borderRadius: "4px",
+                    backgroundColor: loading || !query.trim() ? "rgba(192,158,90,0.3)" : "#C09E5A",
+                    color: "#080808",
+                  }}
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -249,13 +243,13 @@ export default function QueryPage() {
             </form>
 
             {!hasResults && !loading && (
-              <RecentHistory onSelect={handleHistorySelect} />
+              <RecentHistory onSelect={(q) => { setQuery(q); runQuery(q); }} />
             )}
           </div>
 
           {/* Error */}
           {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+            <div className="border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400" style={{ borderRadius: "4px" }}>
               {error}
             </div>
           )}
@@ -265,10 +259,10 @@ export default function QueryPage() {
             <div>
               {/* Summary skeleton */}
               {loading && (
-                <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-accent to-white p-4 mb-5 space-y-2">
-                  <div className="skeleton-shimmer h-3 w-28 rounded-full" />
-                  <div className="skeleton-shimmer h-3 w-full rounded-lg" />
-                  <div className="skeleton-shimmer h-3 w-4/5 rounded-lg" />
+                <div className="border border-[rgba(192,158,90,0.15)] bg-[rgba(192,158,90,0.04)] p-4 mb-5 space-y-2" style={{ borderRadius: "4px" }}>
+                  <div className="skeleton-shimmer h-2.5 w-20" style={{ borderRadius: "2px" }} />
+                  <div className="skeleton-shimmer h-3 w-full" style={{ borderRadius: "2px" }} />
+                  <div className="skeleton-shimmer h-3 w-4/5" style={{ borderRadius: "2px" }} />
                 </div>
               )}
 
@@ -276,15 +270,15 @@ export default function QueryPage() {
 
               {!loading && result && (
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">{result.count ?? 0}</span> results
+                  <span className="text-xs text-[rgba(255,255,255,0.3)]">
+                    <span className="text-[rgba(255,255,255,0.6)] font-medium">{result.count ?? 0}</span> results
                     {result.latency_ms && (
-                      <span className="text-xs ml-1.5 text-muted-foreground/60">({result.latency_ms}ms)</span>
+                      <span className="ml-2 text-[rgba(255,255,255,0.2)]">{result.latency_ms}ms</span>
                     )}
                   </span>
                   <button
                     onClick={() => { setResult(null); setQuery(""); }}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 font-medium"
+                    className="text-xs text-[rgba(255,255,255,0.3)] hover:text-[#C09E5A] transition-colors"
                   >
                     ← New search
                   </button>
@@ -292,15 +286,15 @@ export default function QueryPage() {
               )}
 
               {loading ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {[...Array(4)].map((_, i) => <CardSkeleton key={i} index={i} />)}
                 </div>
               ) : result?.posts.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground text-sm">
+                <div className="text-center py-16 text-[rgba(255,255,255,0.25)] text-sm">
                   No results found. Try a different query.
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-2">
                   {result?.posts.map((post: Post, i: number) => (
                     <ResultCard key={post.id} post={post} index={i} />
                   ))}
@@ -311,17 +305,24 @@ export default function QueryPage() {
 
           {/* Empty state */}
           {!loading && !hasResults && !error && (
-            <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
-              <div className="w-14 h-14 rounded-2xl bg-white border border-border shadow-sm flex items-center justify-center">
-                <svg className="w-6 h-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">What are you looking for?</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                  Try "What is the community saying about AI agents?" or "Latest Slack discussions on hiring"
-                </p>
+            <div className="mt-10 border-t border-[#1e1e1e] pt-8">
+              <p className="text-[10px] text-[rgba(255,255,255,0.2)] uppercase tracking-widest mb-4">Try asking</p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  "What are people saying about Claude Code this week?",
+                  "Latest Slack discussions on hiring AI engineers",
+                  "What's trending in r/MachineLearning recently?",
+                  "Community sentiment about Gauntlet AI",
+                ].map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    onClick={() => { setQuery(suggestion); runQuery(suggestion); }}
+                    className="text-left px-3 py-2.5 text-xs text-[rgba(255,255,255,0.4)] border border-[#2B2B2B] hover:border-[rgba(192,158,90,0.3)] hover:text-[rgba(255,255,255,0.65)] hover:bg-[rgba(192,158,90,0.04)] transition-all duration-150"
+                    style={{ borderRadius: "4px" }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
               </div>
             </div>
           )}

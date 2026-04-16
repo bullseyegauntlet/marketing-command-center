@@ -16,22 +16,19 @@ export function NavBar() {
   const { user } = useUser();
 
   return (
-    <header className="border-b border-border bg-white/80 backdrop-blur-md sticky top-0 z-50">
+    <header className="border-b border-border bg-[rgba(8,8,8,0.85)] backdrop-blur-md sticky top-0 z-50">
       <div className="container mx-auto px-6 max-w-5xl">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#5b6cf8] to-[#8b5cf6] flex items-center justify-center shadow-sm shadow-indigo-200 group-hover:shadow-indigo-300 transition-shadow">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="7" stroke="white" strokeWidth="2.5"/>
-                <path d="m21 21-4.35-4.35" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <div>
-              <span className="text-sm font-bold text-foreground tracking-tight leading-none block">
-                Marketing Command Center
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="flex items-center gap-2">
+              <span className="text-[#C09E5A] font-bold text-lg tracking-tight" style={{ fontFamily: "var(--font-space-grotesk), sans-serif" }}>
+                MCC
               </span>
-              <span className="text-[10px] text-muted-foreground leading-none">Gauntlet AI</span>
+              <span className="text-[#2B2B2B]">|</span>
+              <span className="text-xs text-[rgba(255,255,255,0.4)] tracking-widest uppercase font-medium">
+                Gauntlet AI
+              </span>
             </div>
           </Link>
 
@@ -43,10 +40,10 @@ export function NavBar() {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all duration-150",
+                    "px-4 py-1.5 text-sm font-medium transition-all duration-150 rounded-sm",
                     pathname === link.href
-                      ? "bg-accent text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      ? "text-[#C09E5A] bg-[rgba(192,158,90,0.08)]"
+                      : "text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.9)] hover:bg-[rgba(255,255,255,0.04)]"
                   )}
                 >
                   {link.label}
@@ -57,12 +54,12 @@ export function NavBar() {
             {user && (
               <button
                 onClick={() => signOut({ redirectUrl: "/sign-in" })}
-                className="ml-2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all border border-border"
+                className="ml-3 flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-medium text-[rgba(255,255,255,0.4)] hover:text-[rgba(255,255,255,0.7)] hover:bg-[rgba(255,255,255,0.04)] transition-all border border-[#2B2B2B]"
               >
                 <img
                   src={user.imageUrl}
                   alt={user.firstName ?? "User"}
-                  className="w-4 h-4 rounded-full"
+                  className="w-4 h-4 rounded-full opacity-70"
                 />
                 <span>{user.firstName ?? "Sign out"}</span>
               </button>

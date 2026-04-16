@@ -9,59 +9,32 @@ interface ResultCardProps {
   index?: number;
 }
 
-const platformConfig: Record<string, { label: string; dot: string; bg: string; text: string }> = {
-  x: {
-    label: "X",
-    dot: "bg-gray-800",
-    bg: "bg-gray-100",
-    text: "text-gray-800",
-  },
-  slack: {
-    label: "Slack",
-    dot: "bg-violet-500",
-    bg: "bg-violet-50",
-    text: "text-violet-700",
-  },
-  reddit: {
-    label: "Reddit",
-    dot: "bg-orange-500",
-    bg: "bg-orange-50",
-    text: "text-orange-700",
-  },
-  linkedin: {
-    label: "LinkedIn",
-    dot: "bg-blue-600",
-    bg: "bg-blue-50",
-    text: "text-blue-700",
-  },
+const platformConfig: Record<string, { label: string; color: string; dim: string }> = {
+  x:        { label: "X",        color: "rgba(255,255,255,0.7)", dim: "rgba(255,255,255,0.06)" },
+  slack:    { label: "Slack",    color: "#9B8EF0",               dim: "rgba(155,142,240,0.08)" },
+  reddit:   { label: "Reddit",   color: "#FF6B35",               dim: "rgba(255,107,53,0.08)"  },
+  linkedin: { label: "LinkedIn", color: "#5B9BD5",               dim: "rgba(91,155,213,0.08)"  },
 };
 
 const TRUNCATE_AT = 280;
 
-/** Build a profile/entity URL based on platform and token type */
 function buildLink(platform: string, type: "mention" | "hashtag" | "subreddit", value: string): string | null {
   const clean = value.replace(/^[@#]/, "");
-  switch (platform) {
-    case "x":
-      if (type === "mention") return `https://x.com/${clean}`;
-      if (type === "hashtag") return `https://x.com/hashtag/${clean}`;
-      return null;
-    case "reddit":
-      if (type === "mention") return `https://www.reddit.com/user/${clean}`;
-      if (type === "subreddit") return `https://www.reddit.com/r/${clean}`;
-      if (type === "hashtag") return null;
-      return null;
-    case "linkedin":
-      if (type === "mention") return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(clean)}`;
-      return null;
-    default:
-      return null;
+  if (platform === "x") {
+    if (type === "mention") return `https://x.com/${clean}`;
+    if (type === "hashtag") return `https://x.com/hashtag/${clean}`;
   }
+  if (platform === "reddit") {
+    if (type === "mention") return `https://www.reddit.com/user/${clean}`;
+    if (type === "subreddit") return `https://www.reddit.com/r/${clean}`;
+  }
+  if (platform === "linkedin" && type === "mention") {
+    return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(clean)}`;
+  }
+  return null;
 }
 
-/** Parse post content into segments: plain text, @mentions, #hashtags, r/subreddits */
 function parseContent(text: string, platform: string): React.ReactNode[] {
-  // Match: @username, #hashtag, r/subreddit, u/username
   const regex = /(@[\w.]+|#[\w]+|r\/[\w]+|u\/[\w]+)/g;
   const parts: React.ReactNode[] = [];
   let last = 0;
@@ -71,65 +44,43 @@ function parseContent(text: string, platform: string): React.ReactNode[] {
     const token = match[0];
     const start = match.index;
 
-    // Push preceding plain text
-    if (start > last) {
-      parts.push(text.slice(last, start));
-    }
+    if (start > last) parts.push(text.slice(last, start));
 
     let href: string | null = null;
-    let type: "mention" | "hashtag" | "subreddit" = "mention";
+    let isMention = true;
 
     if (token.startsWith("r/")) {
-      type = "subreddit";
       href = `https://www.reddit.com/${token}`;
+      isMention = false;
     } else if (token.startsWith("u/")) {
-      type = "mention";
       href = `https://www.reddit.com/user/${token.slice(2)}`;
     } else if (token.startsWith("@")) {
-      type = "mention";
       href = buildLink(platform, "mention", token);
     } else if (token.startsWith("#")) {
-      type = "hashtag";
       href = buildLink(platform, "hashtag", token);
+      isMention = false;
     }
+
+    const className = cn(
+      "font-medium transition-colors cursor-pointer",
+      isMention ? "text-[#C09E5A] hover:text-[#D4B575]" : "text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)]"
+    );
 
     if (href) {
       parts.push(
-        <a
-          key={start}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className={cn(
-            "font-medium transition-colors",
-            type === "mention"
-              ? "text-primary hover:text-primary/70"
-              : "text-violet-500 hover:text-violet-400"
-          )}
-        >
+        <a key={start} href={href} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()} className={className}>
           {token}
         </a>
       );
     } else {
-      // No link available — still color it
-      parts.push(
-        <span
-          key={start}
-          className={type === "mention" ? "text-primary font-medium" : "text-violet-500 font-medium"}
-        >
-          {token}
-        </span>
-      );
+      parts.push(<span key={start} className={className}>{token}</span>);
     }
 
     last = start + token.length;
   }
 
-  if (last < text.length) {
-    parts.push(text.slice(last));
-  }
-
+  if (last < text.length) parts.push(text.slice(last));
   return parts;
 }
 
@@ -140,70 +91,80 @@ export function ResultCard({ post, index = 0 }: ResultCardProps) {
   const displayText =
     isLong && !expanded ? post.content.slice(0, TRUNCATE_AT).trimEnd() + "…" : post.content;
 
-  const parsedContent = parseContent(displayText, post.platform);
-
   return (
     <div
-      className="animate-card group relative bg-white border border-border rounded-2xl p-4 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5 transition-all duration-200 cursor-default"
-      style={{ animationDelay: `${Math.min(index * 35, 350)}ms` }}
+      className="animate-card group relative border border-[#2B2B2B] bg-[#121212] p-4 transition-all duration-200 hover:border-[rgba(192,158,90,0.25)] hover:bg-[#151515]"
+      style={{
+        borderRadius: "4px",
+        animationDelay: `${Math.min(index * 35, 350)}ms`,
+      }}
     >
+      {/* Subtle gold left accent on hover */}
+      <div className="absolute left-0 top-0 bottom-0 w-px bg-[#C09E5A] opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ borderRadius: "4px 0 0 4px" }} />
+
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full", platform.bg, platform.text)}>
-            <span className={cn("w-1.5 h-1.5 rounded-full", platform.dot)} />
+          <span
+            className="text-[10px] font-semibold px-2 py-0.5 tracking-wider uppercase"
+            style={{
+              color: platform.color,
+              backgroundColor: platform.dim,
+              borderRadius: "2px",
+            }}
+          >
             {platform.label}
           </span>
           {post.channel && (
-            <span className="text-xs text-muted-foreground font-medium">#{post.channel}</span>
+            <span className="text-xs text-[rgba(255,255,255,0.3)] font-mono">#{post.channel}</span>
           )}
-          <span className="text-sm font-medium text-foreground">@{post.author}</span>
+          <span className="text-sm font-medium text-[rgba(255,255,255,0.7)]">@{post.author}</span>
         </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+        <span className="text-[11px] text-[rgba(255,255,255,0.25)] whitespace-nowrap shrink-0 tabular-nums">
           {formatRelativeTime(post.published_at)}
         </span>
       </div>
 
       {/* Content */}
-      <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap break-words">
-        {parsedContent}
+      <p className="text-sm text-[rgba(255,255,255,0.75)] leading-relaxed whitespace-pre-wrap break-words">
+        {parseContent(displayText, post.platform)}
       </p>
 
       {isLong && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="mt-2 text-xs text-primary hover:text-primary/70 font-medium transition-colors"
+          className="mt-2 text-xs text-[#C09E5A] hover:text-[#D4B575] font-medium transition-colors"
         >
           {expanded ? "Show less ↑" : "Show more ↓"}
         </button>
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/60">
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#1e1e1e]">
         <div className="flex items-center gap-3">
           {post.platform === "x" && (
             <>
               {post.likes !== undefined && post.likes > 0 && (
-                <span className="text-xs text-muted-foreground">♥ {post.likes.toLocaleString()}</span>
+                <span className="text-[11px] text-[rgba(255,255,255,0.3)]">♥ {post.likes.toLocaleString()}</span>
               )}
               {post.retweets !== undefined && post.retweets > 0 && (
-                <span className="text-xs text-muted-foreground">↩ {post.retweets.toLocaleString()}</span>
+                <span className="text-[11px] text-[rgba(255,255,255,0.3)]">↩ {post.retweets.toLocaleString()}</span>
               )}
             </>
           )}
           {post.platform === "reddit" && (
             <>
               {post.likes !== undefined && post.likes > 0 && (
-                <span className="text-xs text-muted-foreground">⬆ {post.likes.toLocaleString()}</span>
+                <span className="text-[11px] text-[rgba(255,255,255,0.3)]">⬆ {post.likes.toLocaleString()}</span>
               )}
               {post.replies !== undefined && post.replies > 0 && (
-                <span className="text-xs text-muted-foreground">💬 {post.replies.toLocaleString()}</span>
+                <span className="text-[11px] text-[rgba(255,255,255,0.3)]">💬 {post.replies.toLocaleString()}</span>
               )}
             </>
           )}
           {post.score !== undefined && (
-            <span className="text-xs font-medium text-primary/70 bg-accent px-1.5 py-0.5 rounded-full">
-              {Math.round(post.score * 100)}%
+            <span className="text-[10px] font-medium text-[#C09E5A] bg-[rgba(192,158,90,0.1)] px-1.5 py-0.5" style={{ borderRadius: "2px" }}>
+              {Math.round(post.score * 100)}% match
             </span>
           )}
         </div>
@@ -211,8 +172,8 @@ export function ResultCard({ post, index = 0 }: ResultCardProps) {
           href={post.source_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-primary hover:text-primary/70 font-semibold transition-colors flex items-center gap-1 opacity-0 group-hover:opacity-100"
           onClick={(e) => e.stopPropagation()}
+          className="text-[11px] text-[rgba(255,255,255,0.25)] hover:text-[#C09E5A] font-medium transition-colors opacity-0 group-hover:opacity-100 flex items-center gap-1"
         >
           Open ↗
         </a>
