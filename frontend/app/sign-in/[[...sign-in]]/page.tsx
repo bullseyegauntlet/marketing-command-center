@@ -1,21 +1,53 @@
 "use client";
 
 import { SignIn } from "@clerk/nextjs";
+import { dark } from "@clerk/themes";
 
 export default function SignInPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#080808]">
-      {/* Minimal branding */}
       <div className="flex flex-col items-center gap-8">
         <div className="text-center">
           <p className="text-[10px] font-semibold text-[#C09E5A] tracking-widest uppercase mb-2">
             Gauntlet AI
           </p>
-          <h1 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-space-grotesk), sans-serif", letterSpacing: "-0.02em" }}>
+          <h1
+            className="text-2xl font-bold text-white"
+            style={{ fontFamily: "var(--font-space-grotesk), sans-serif", letterSpacing: "-0.02em" }}
+          >
             Marketing Command Center
           </h1>
         </div>
-        <SignIn />
+
+        <SignIn
+          appearance={{
+            baseTheme: dark,
+            variables: {
+              colorBackground: "#121212",
+              colorInputBackground: "#1a1a1a",
+              colorInputText: "rgba(255,255,255,0.85)",
+              colorText: "rgba(255,255,255,0.85)",
+              colorTextSecondary: "rgba(255,255,255,0.4)",
+              colorPrimary: "#C09E5A",
+              colorDanger: "#e84646",
+              borderRadius: "4px",
+              fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+            },
+            elements: {
+              card: "bg-[#121212] border border-[#2B2B2B] shadow-2xl shadow-black/60",
+              headerTitle: "text-white font-bold",
+              headerSubtitle: "text-[rgba(255,255,255,0.4)]",
+              formButtonPrimary: "bg-[#C09E5A] hover:bg-[#B8914F] text-[#080808] font-semibold",
+              formFieldInput: "bg-[#1a1a1a] border-[#2B2B2B] text-[rgba(255,255,255,0.85)] focus:border-[#C09E5A]",
+              formFieldLabel: "text-[rgba(255,255,255,0.5)] text-xs",
+              dividerLine: "bg-[#2B2B2B]",
+              dividerText: "text-[rgba(255,255,255,0.3)]",
+              footerActionLink: "text-[#C09E5A] hover:text-[#D4B575]",
+              identityPreviewText: "text-[rgba(255,255,255,0.6)]",
+              identityPreviewEditButton: "text-[#C09E5A]",
+            },
+          }}
+        />
       </div>
     </div>
   );
