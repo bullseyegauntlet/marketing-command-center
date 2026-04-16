@@ -61,7 +61,7 @@ jobs:
           POPULAR_THRESHOLD_X_REPOSTS:     ${{ secrets.POPULAR_THRESHOLD_X_REPOSTS }}
           POPULAR_THRESHOLD_X_REPLIES:     ${{ secrets.POPULAR_THRESHOLD_X_REPLIES }}
           POPULAR_THRESHOLD_SLACK_REPLIES: ${{ secrets.POPULAR_THRESHOLD_SLACK_REPLIES }}
-          RECHECK_WINDOW_HOURS:            '72'
+          RECHECK_WINDOW_HOURS:            '168'
         run: python ingestion/engagement_recheck.py
 
   # ── X Mentions (every 4 hours — same cadence as engagement recheck) ──────────
