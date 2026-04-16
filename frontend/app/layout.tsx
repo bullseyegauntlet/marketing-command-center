@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import { StatsBar } from "@/components/stats-bar";
-import { NavBar } from "@/components/nav-bar";
+import { AppShell } from "@/components/app-shell";
 import { ClerkProvider } from "@clerk/nextjs";
 
 const geistSans = Geist({
@@ -32,11 +31,7 @@ export default function RootLayout({
       <html lang="en">
         <body className={`${geistSans.variable} ${spaceGrotesk.variable} antialiased min-h-screen bg-background`}>
           <div className="flex flex-col min-h-screen">
-            <NavBar />
-            <StatsBar />
-            <main className="flex-1 container mx-auto px-6 py-10 max-w-5xl">
-              {children}
-            </main>
+            <AppShell>{children}</AppShell>
           </div>
         </body>
       </html>
