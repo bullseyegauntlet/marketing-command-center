@@ -431,6 +431,7 @@ def semantic_query(req: SemanticQueryRequest):
                    1 - (embedding <=> %s::vector) as similarity
             FROM posts
             WHERE embedding IS NOT NULL
+              AND platform IN ('x', 'slack')
         """
         params = [embedding]
 
