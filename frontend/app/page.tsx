@@ -67,6 +67,33 @@ function RecentHistory({ onSelect }: { onSelect: (q: string) => void }) {
   );
 }
 
+function useNextDataPull() {
+  const getSecondsUntilNext = () => {
+    const now = new Date();
+    // Crons run at 0, 4, 8, 12, 16, 20 UTC (every 4h)
+    const nextRun = new Date(now);
+    const h = now.getUTCHours();
+    const nextHour = Math.ceil((h + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600) / 4) * 4;
+    nextRun.setUTCHours(nextHour % 24, 0, 0, 0);
+    if (nextHour >= 24) nextRun.setUTCDate(nextRun.getUTCDate() + 1);
+    return Math.max(0, Math.floor((nextRun.getTime() - now.getTime()) / 1000));
+  };
+
+  const [secs, setSecs] = useState(getSecondsUntilNext);
+
+  useEffect(() => {
+    const id = setInterval(() => setSecs(getSecondsUntilNext()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  return h > 0
+    ? `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`
+    : `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
 function TabBar({
   activeTab,
   setActiveTab,
@@ -78,6 +105,8 @@ function TabBar({
   mentionsBadge: number;
   popularBadge: number;
 }) {
+  const countdown = useNextDataPull();
+
   const tabs: { id: ActiveTab; label: string; badge?: number }[] = [
     { id: "search",   label: "Search" },
     { id: "mentions", label: "@Mentions", badge: mentionsBadge },
@@ -105,6 +134,10 @@ function TabBar({
           )}
         </button>
       ))}
+      <div className="ml-auto flex items-center gap-1.5 pb-px pr-1">
+        <span className="text-[10px] text-[rgba(255,255,255,0.3)] tracking-wide">next data pull</span>
+        <span className="text-[10px] font-mono font-semibold text-[rgba(255,255,255,0.55)] tabular-nums">{countdown}</span>
+      </div>
     </div>
   );
 }
