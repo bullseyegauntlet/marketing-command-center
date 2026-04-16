@@ -94,63 +94,22 @@ def slack_get(endpoint: str, params: dict, retries=3) -> dict:
     return {'ok': False, 'error': 'max_retries_exceeded'}
 
 
-def send_popular_alert_x(post: dict, triggered_by: str, metric_value: int, metrics: dict):
-    if not ALERT_CHANNEL or not SLACK_TOKEN:
+def send_aggregated_alert(newly_flagged: list):
+    """Send a single concise message listing all newly flagged posts this cycle."""
+    if not newly_flagged or not ALERT_CHANNEL or not SLACK_TOKEN:
         return
-    views   = metrics.get('impression_count', 0)
-    likes   = metrics.get('like_count', 0)
-    reposts = metrics.get('retweet_count', 0)
-    replies = metrics.get('reply_count', 0)
-    content_preview = post.get('content', '')[:200]
-    author  = post.get('author', 'unknown')
-    url     = post.get('source_url', '')
-
-    thresholds = {
-        'views': POPULAR_THRESHOLD_X_VIEWS,
-        'likes': POPULAR_THRESHOLD_X_LIKES,
-        'reposts': POPULAR_THRESHOLD_X_REPOSTS,
-        'replies': POPULAR_THRESHOLD_X_REPLIES,
-    }
-    threshold_label = thresholds.get(triggered_by, '?')
-
-    message = (
-        f'🔥 *Viral X Post Detected*\n\n'
-        f'*@{author}* posted something taking off:\n\n'
-        f'> "{content_preview}"\n\n'
-        f'👁 *{views:,} views*  ❤ *{likes:,} likes*  🔁 *{reposts:,} reposts*  💬 *{replies:,} replies*\n'
-        f'📎 {url}\n\n'
-        f'_Triggered by: {metric_value:,} {triggered_by} (threshold: {threshold_label:,})_'
-    )
+    lines = [f'🔥 *{len(newly_flagged)} new popular post{"s" if len(newly_flagged) > 1 else ""}*']
+    for post in newly_flagged:
+        author = post.get('author', 'unknown')
+        url    = post.get('source_url', '')
+        lines.append(f'• @{author}: {url}')
+    message = '\n'.join(lines)
     try:
         requests.post('https://slack.com/api/chat.postMessage',
             headers={'Authorization': f'Bearer {SLACK_TOKEN}'},
             json={'channel': ALERT_CHANNEL, 'text': message}, timeout=10)
     except Exception as e:
-        log.error(f'Failed to send alert: {e}')
-
-
-def send_popular_alert_slack(post: dict, reply_count: int):
-    if not ALERT_CHANNEL or not SLACK_TOKEN:
-        return
-    channel = post.get('channel', '')
-    channel_display = f'#{channel}' if channel and not channel.startswith('#') else channel
-    content_preview = post.get('content', '')[:200]
-    url = post.get('source_url', '')
-
-    message = (
-        f'🔥 *Hot Slack Thread Detected*\n\n'
-        f'*{channel_display}* thread is blowing up:\n\n'
-        f'> "{content_preview}"\n\n'
-        f'💬 *{reply_count} replies*\n'
-        f'📎 {url}\n\n'
-        f'_Triggered by: {reply_count} thread replies (threshold: {POPULAR_THRESHOLD_SLACK_REPLIES})_'
-    )
-    try:
-        requests.post('https://slack.com/api/chat.postMessage',
-            headers={'Authorization': f'Bearer {SLACK_TOKEN}'},
-            json={'channel': ALERT_CHANNEL, 'text': message}, timeout=10)
-    except Exception as e:
-        log.error(f'Failed to send Slack popular alert: {e}')
+        log.error(f'Failed to send aggregated alert: {e}')
 
 
 def flag_popular(cur, conn, post_id: str, triggered_by: str, metric_value: int) -> bool:
@@ -164,10 +123,11 @@ def flag_popular(cur, conn, post_id: str, triggered_by: str, metric_value: int) 
     return cur.rowcount > 0
 
 
-def recheck_x_posts(cur, conn, posts: list):
+def recheck_x_posts(cur, conn, posts: list) -> list:
     """Batch-fetch current X metrics for a list of X posts and flag as needed."""
+    flagged = []
     if not posts:
-        return
+        return flagged
 
     # Map external_id -> post row
     id_map = {p['external_id']: p for p in posts}
@@ -224,15 +184,19 @@ def recheck_x_posts(cur, conn, posts: list):
             newly_flagged = flag_popular(cur, conn, str(post['id']), triggered_by, metric_value)
             if newly_flagged:
                 log.info(f'Recheck flagged X post {post["id"]} ({triggered_by}: {metric_value})')
-                send_popular_alert_x(post, triggered_by, metric_value, metrics)
+                flagged.append(post)
 
         log.info(f'Rechecked X batch {i//BATCH + 1} ({len(batch_ids)} tweets)')
 
 
-def recheck_slack_posts(cur, conn, posts: list):
+    return flagged
+
+
+def recheck_slack_posts(cur, conn, posts: list) -> list:
     """Re-fetch reply counts for Slack thread root messages and flag as needed."""
+    flagged = []
     if not posts:
-        return
+        return flagged
 
     for post in posts:
         # external_id for Slack is the message ts
@@ -264,13 +228,15 @@ def recheck_slack_posts(cur, conn, posts: list):
         newly_flagged = flag_popular(cur, conn, str(post['id']), 'slack_thread_replies', reply_count)
         if newly_flagged:
             log.info(f'Recheck flagged Slack post {post["id"]} ({reply_count} replies)')
-            send_popular_alert_slack(post, reply_count)
+            flagged.append(post)
+    return flagged
 
 
-def recheck_reddit_posts(cur, conn, posts: list):
+def recheck_reddit_posts(cur, conn, posts: list) -> list:
     """Re-fetch upvote/comment counts for Reddit posts via public API and flag as needed."""
+    flagged = []
     if not posts:
-        return
+        return flagged
 
     for post in posts:
         external_id = post.get('external_id', '')
@@ -312,28 +278,10 @@ def recheck_reddit_posts(cur, conn, posts: list):
         newly_flagged = flag_popular(cur, conn, str(post['id']), triggered_by, metric_value)
         if newly_flagged:
             log.info(f'Recheck flagged Reddit post {post["id"]} ({triggered_by}: {metric_value})')
-            # Send alert
-            content_preview = post.get('content', '')[:200]
-            channel = post.get('channel', 'reddit')
-            url = post.get('source_url', '')
-            threshold = POPULAR_THRESHOLD_REDDIT_UPVOTES if triggered_by == 'upvotes' else POPULAR_THRESHOLD_REDDIT_COMMENTS
-            message = (
-                f'🔥 *Trending Reddit Post Detected*\n\n'
-                f'*r/{channel}* is blowing up:\n\n'
-                f'> "{content_preview}"\n\n'
-                f'⬆️ *{upvotes:,} upvotes*  💬 *{comments:,} comments*\n'
-                f'📎 {url}\n\n'
-                f'_Triggered by: {metric_value:,} {triggered_by} (threshold: {threshold:,})_'
-            )
-            if ALERT_CHANNEL and SLACK_TOKEN:
-                try:
-                    requests.post('https://slack.com/api/chat.postMessage',
-                        headers={'Authorization': f'Bearer {SLACK_TOKEN}'},
-                        json={'channel': ALERT_CHANNEL, 'text': message}, timeout=10)
-                except Exception as e:
-                    log.error(f'Failed to send Reddit alert: {e}')
-
+            flagged.append(post)
         time.sleep(0.5)  # be gentle with public API
+
+    return flagged
 
 
 def run():
@@ -352,7 +300,7 @@ def run():
         ''', (RECHECK_WINDOW_HOURS,))
         x_posts = [dict(r) for r in cur.fetchall()]
         log.info(f'Rechecking {len(x_posts)} X posts')
-        recheck_x_posts(cur, conn, x_posts)
+        flagged = recheck_x_posts(cur, conn, x_posts)
 
         # Fetch Slack posts from last RECHECK_WINDOW_HOURS not yet flagged
         # Only check thread roots (messages that have replies — we track external_id = ts)
@@ -366,7 +314,7 @@ def run():
         ''', (RECHECK_WINDOW_HOURS,))
         slack_posts = [dict(r) for r in cur.fetchall()]
         log.info(f'Rechecking {len(slack_posts)} Slack posts')
-        recheck_slack_posts(cur, conn, slack_posts)
+        flagged += recheck_slack_posts(cur, conn, slack_posts)
 
         # Fetch Reddit posts from last RECHECK_WINDOW_HOURS not yet flagged
         cur.execute('''
@@ -379,9 +327,10 @@ def run():
         ''', (RECHECK_WINDOW_HOURS,))
         reddit_posts = [dict(r) for r in cur.fetchall()]
         log.info(f'Rechecking {len(reddit_posts)} Reddit posts')
-        recheck_reddit_posts(cur, conn, reddit_posts)
+        flagged += recheck_reddit_posts(cur, conn, reddit_posts)
 
-        log.info('Engagement recheck complete.')
+        send_aggregated_alert(flagged)
+        log.info(f'Engagement recheck complete. {len(flagged)} newly flagged.')
 
     except Exception as e:
         log.error(f'Engagement recheck failed: {e}')
