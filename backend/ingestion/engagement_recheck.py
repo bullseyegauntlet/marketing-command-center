@@ -30,7 +30,7 @@ X_ACCESS_TOKEN_SECRET           = os.getenv('X_ACCESS_TOKEN_SECRET')
 SLACK_TOKEN                     = os.getenv('SLACK_BOT_TOKEN')
 ALERT_CHANNEL                   = os.getenv('SLACK_ALERT_CHANNEL')
 
-POPULAR_THRESHOLD_X_VIEWS       = int(os.getenv('POPULAR_THRESHOLD_X_VIEWS', 1000))
+POPULAR_THRESHOLD_X_VIEWS       = int(os.getenv('POPULAR_THRESHOLD_X_VIEWS', 50000))
 POPULAR_THRESHOLD_X_LIKES       = int(os.getenv('POPULAR_THRESHOLD_X_LIKES', 500))
 POPULAR_THRESHOLD_X_REPOSTS     = int(os.getenv('POPULAR_THRESHOLD_X_REPOSTS', 100))
 POPULAR_THRESHOLD_X_REPLIES     = int(os.getenv('POPULAR_THRESHOLD_X_REPLIES', 100))
@@ -38,7 +38,7 @@ POPULAR_THRESHOLD_SLACK_REPLIES   = int(os.getenv('POPULAR_THRESHOLD_SLACK_REPLI
 POPULAR_THRESHOLD_REDDIT_UPVOTES  = int(os.getenv('POPULAR_THRESHOLD_REDDIT_UPVOTES', 100))
 POPULAR_THRESHOLD_REDDIT_COMMENTS = int(os.getenv('POPULAR_THRESHOLD_REDDIT_COMMENTS', 50))
 POPULAR_EXCLUDED_AUTHORS        = {a.strip().lower().lstrip('@')
-                                   for a in os.getenv('POPULAR_EXCLUDED_AUTHORS', 'jason').split(',') if a.strip()}
+                                   for a in os.getenv('POPULAR_EXCLUDED_AUTHORS', 'jason,eriktorenberg,austen').split(',') if a.strip()}
 
 RECHECK_WINDOW_HOURS = int(os.getenv('RECHECK_WINDOW_HOURS', 72))
 
