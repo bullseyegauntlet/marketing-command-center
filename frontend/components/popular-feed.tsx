@@ -8,9 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 type Platform = "all" | "x" | "slack";
 type TimeRange = "7" | "30" | "all";
 
-const platformConfig: Record<string, { label: string; badgeClass: string }> = {
-  x: { label: "X", badgeClass: "bg-gray-900 text-white" },
-  slack: { label: "Slack", badgeClass: "bg-purple-600 text-white" },
+const platformConfig: Record<string, { label: string; color: string; dim: string }> = {
+  x:        { label: "X",        color: "rgba(255,255,255,0.7)",  dim: "rgba(255,255,255,0.06)" },
+  slack:    { label: "Slack",    color: "#9B8EF0",                dim: "rgba(155,142,240,0.08)" },
+  reddit:   { label: "Reddit",   color: "#FF6B35",                dim: "rgba(255,107,53,0.08)"  },
+  linkedin: { label: "LinkedIn", color: "#5B9BD5",                dim: "rgba(91,155,213,0.08)"  },
 };
 
 const triggerLabels: Record<string, string> = {
@@ -50,7 +52,8 @@ function PopularCard({ post, index = 0 }: { post: PopularPost; index?: number })
       <div className="flex items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-base leading-none">🔥</span>
-          <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", platform.badgeClass)}>
+          <span className="text-[10px] font-semibold px-2 py-0.5 tracking-wider uppercase"
+            style={{ color: platform.color, backgroundColor: platform.dim, borderRadius: "2px" }}>
             {platform.label}
           </span>
           {post.channel && (
@@ -159,7 +162,7 @@ export function PopularFeed() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Platform filter */}
-        <div className="flex items-center bg-white border border-border rounded-xl p-0.5 text-xs font-medium shadow-sm">
+        <div className="flex items-center bg-[#1a1a1a] border border-[#2B2B2B] text-xs font-medium p-0.5">
           {(["all", "x", "slack"] as Platform[]).map((p) => (
             <button
               key={p}
@@ -177,7 +180,7 @@ export function PopularFeed() {
         </div>
 
         {/* Time range filter */}
-        <div className="flex items-center bg-white border border-border rounded-xl p-0.5 text-xs font-medium shadow-sm">
+        <div className="flex items-center bg-[#1a1a1a] border border-[#2B2B2B] text-xs font-medium p-0.5">
           {([["7", "7d"], ["30", "30d"], ["all", "All time"]] as [TimeRange, string][]).map(
             ([val, label]) => (
               <button
@@ -214,13 +217,13 @@ export function PopularFeed() {
       {loading && (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="border border-border rounded-xl p-4 bg-white space-y-3">
+            <div key={i} className="border border-[#2B2B2B] p-4 bg-[#121212] space-y-3">
               <div className="flex gap-2 items-center">
-                <Skeleton className="h-5 w-5 rounded-full" />
-                <Skeleton className="h-5 w-10 rounded-full" />
-                <Skeleton className="h-4 w-32" />
+                <div className="skeleton-shimmer h-5 w-5 rounded-full" />
+                <div className="skeleton-shimmer h-5 w-10" style={{borderRadius:"2px"}} />
+                <div className="skeleton-shimmer h-3 w-32" style={{borderRadius:"2px"}} />
               </div>
-              <Skeleton className="h-3 w-full" />
+              <div className="skeleton-shimmer h-3 w-full" style={{borderRadius:"2px"}} />
               <Skeleton className="h-3 w-4/5" />
             </div>
           ))}
@@ -230,7 +233,7 @@ export function PopularFeed() {
       {/* Results */}
       {!loading && posts.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-          <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-2xl">
+          <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center text-2xl">
             🔥
           </div>
           <div>

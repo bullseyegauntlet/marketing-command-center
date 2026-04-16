@@ -127,12 +127,12 @@ export function MentionsFeed() {
       {loading && (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="border border-border rounded-xl p-4 bg-white space-y-3">
+            <div key={i} className="border border-[#2B2B2B] p-4 bg-[#121212] space-y-3">
               <div className="flex gap-2 items-center">
-                <Skeleton className="h-5 w-10 rounded-full" />
-                <Skeleton className="h-4 w-36" />
+                <div className="skeleton-shimmer h-5 w-10" style={{borderRadius:"2px"}} />
+                <div className="skeleton-shimmer h-3 w-36" style={{borderRadius:"2px"}} />
               </div>
-              <Skeleton className="h-3 w-full" />
+              <div className="skeleton-shimmer h-3 w-full" style={{borderRadius:"2px"}} />
               <Skeleton className="h-3 w-3/4" />
             </div>
           ))}
